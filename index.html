@@ -123,27 +123,47 @@
       });
   }
 
+// 3. 画面描画（売り切れ対応版）
   function displayMenu(items) {
     const container = document.getElementById('menu-list');
     container.innerHTML = ""; 
+    
     if(!items || items.length === 0) {
        container.innerHTML = '<div class="text-secondary text-center mt-5">メニューがありません</div>';
        return;
     }
+    
     items.forEach(item => {
-      container.innerHTML += `
-        <div class="card p-3">
+      // 売り切れかどうかの判定
+      const isSoldOut = item.isSoldOut;
+
+      // ボタンの状態: 売り切れなら disabled、色はグレー
+      const btnState = isSoldOut ? 'disabled' : '';
+      const btnText = isSoldOut ? 'SOLD OUT' : '追加';
+      const btnClass = isSoldOut ? 'btn-secondary' : 'btn-add';
+      
+      // 画像やカード自体の透明度も少し下げる
+      const cardOpacity = isSoldOut ? 'opacity: 0.6;' : '';
+
+      const card = `
+        <div class="card p-3" style="${cardOpacity}">
           <div class="d-flex justify-content-between align-items-center">
             <div style="flex: 1;">
-              <div class="card-title">${item.name}</div>
+              <div class="card-title">
+                ${item.name} 
+                ${isSoldOut ? '<span class="badge bg-danger ms-2" style="font-size:0.6em">売切</span>' : ''}
+              </div>
               <div class="flavor-tag">${item.flavor}</div>
               <div class="price">¥${item.price}</div>
             </div>
             <div>
-              <button class="btn btn-add" onclick="addToCart('${item.id}', '${item.name}', ${item.price})">追加</button>
+              <button class="btn ${btnClass}" onclick="addToCart('${item.id}', '${item.name}', ${item.price})" ${btnState}>
+                ${btnText}
+              </button>
             </div>
           </div>
         </div>`;
+      container.innerHTML += card;
     });
   }
 
