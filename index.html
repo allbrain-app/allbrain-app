@@ -3,296 +3,329 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bar Order</title>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>モバイルオーダー</title>
   <style>
-    /* Bar用ダークテーマ */
-    body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; padding-bottom: 100px; }
-    .container { max-width: 600px; padding: 0 15px; }
-    
-    /* タブ */
-    .nav-pills { margin-bottom: 20px; flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; padding-bottom: 5px; }
-    .nav-pills::-webkit-scrollbar { height: 4px; }
-    .nav-pills::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-    .nav-item { margin-right: 8px; }
-    .nav-link { color: #aaa; background-color: #2c2c2c; border: 1px solid #333; border-radius: 20px; padding: 6px 16px; font-size: 0.9rem; }
-    .nav-link.active { background-color: #bb86fc; color: #000; font-weight: bold; border-color: #bb86fc; }
-    
-    /* 商品カード */
-    .card { background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 15px; border-radius: 12px; overflow: hidden; }
-    .card-body-custom { display: flex; align-items: center; padding: 12px; gap: 12px; }
-    .img-area { width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background-color: #333; }
-    .img-area img { width: 100%; height: 100%; object-fit: cover; }
-    .text-area { flex-grow: 1; min-width: 0; }
-    .item-name { color: #fff; font-weight: bold; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item-flavor { font-size: 0.75rem; color: #aaa; font-style: italic; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .item-price { color: #bb86fc; font-size: 1.1em; font-weight: bold; margin-top: 4px; }
-    .btn-area { flex-shrink: 0; }
-    .btn-add { background-color: #03dac6; color: #000; border: none; font-weight: bold; border-radius: 20px; padding: 6px 16px; font-size: 0.9rem; }
-    .btn-secondary { background-color: #444; color: #ccc; border: none; border-radius: 20px; padding: 6px 12px; font-size: 0.8rem; }
-    
-    /* カートバー & モーダル */
-    .cart-bar { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #2c2c2c; padding: 15px 20px; border-top: 1px solid #444; z-index: 1000; display: none; }
-    .modal-content { background-color: #2c2c2c; color: #fff; border: 1px solid #444; }
-    .btn-close { filter: invert(1); }
+    /* --- 基本スタイル --- */
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      padding-bottom: 80px; /* 下部ボタンのスペース確保 */
+    }
 
-    /* ★追加: カート内リストのデザイン */
-    .cart-list-item { border-bottom: 1px solid #444; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-    .cart-list-item:last-child { border-bottom: none; }
-    .btn-delete { color: #ff5555; background: none; border: 1px solid #ff5555; border-radius: 50%; width: 30px; height: 30px; padding: 0; line-height: 28px; font-size: 1.2rem; }
+    header {
+      background-color: #ff9800;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .container {
+      padding: 15px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* --- メニューリストのデザイン --- */
+    .menu-item {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .menu-info h3 {
+      margin: 0 0 5px 0;
+      font-size: 1.1rem;
+    }
+
+    .menu-info p {
+      margin: 0;
+      color: #666;
+    }
+
+    /* --- 数量操作ボタン --- */
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-qty {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 1.2rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ff9800;
+    }
+
+    .btn-qty:active {
+      background-color: #ffe0b2;
+    }
+
+    .qty-display {
+      font-weight: bold;
+      font-size: 1.1rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* --- 注文送信ボタン（フッター固定） --- */
+    .footer-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: white;
+      padding: 15px;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      box-sizing: border-box;
+      z-index: 900;
+    }
+
+    .order-btn {
+      background-color: #ff9800;
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      width: 100%;
+      max-width: 500px;
+      transition: background 0.2s;
+    }
+
+    .order-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* =========================================
+       フェーズ1追加：ローディングオーバーレイ
+       ========================================= */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6); /* 背景を薄暗く */
+      z-index: 9999; /* 最前面 */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    /* 表示状態のクラス */
+    .loading-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .loading-content {
+      color: white;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 15px auto;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #ff9800; /* テーマカラー */
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
   </style>
 </head>
 <body>
 
-<div class="container mt-4">
-  <h4 class="mb-4 text-center text-white" style="letter-spacing: 2px;">DRINK MENU</h4>
-  <div id="user-info" class="text-center mb-4 text-secondary small"></div>
-  
-  <ul class="nav nav-pills" id="category-tabs">
-    </ul>
+  <header>
+    スマホオーダー
+  </header>
 
-  <div id="menu-list">
-    <div class="text-center mt-5 text-secondary">
-      <div class="spinner-border text-light" role="status"></div>
-      <div class="mt-3">Loading Menu...</div>
+  <div class="container" id="menu-container">
+    </div>
+
+  <div class="footer-bar">
+    <button id="submit-btn" class="order-btn" onclick="submitOrder()">注文を確定する</button>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>注文を送信中...</p>
+      <p style="font-size:0.8rem; font-weight:normal;">画面を閉じないでください</p>
     </div>
   </div>
-</div>
 
-<div id="cart-bar" class="cart-bar d-flex justify-content-between align-items-center">
-  <div>
-    <span id="cart-count" class="badge bg-danger rounded-pill">0</span> 
-    <span class="small text-secondary">items</span>
-    <span id="cart-total" class="ms-2 text-white">¥0</span>
-  </div>
-  <button onclick="showConfirmModal()" class="btn btn-primary px-4 fw-bold" id="btn-order">注文確認</button>
-</div>
 
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"> <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">注文の確認</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div id="cart-items-container"></div>
-        <div class="text-end mt-3 fw-bold fs-5" id="cart-grand-total"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
-        <button type="button" class="btn btn-primary px-4" onclick="executeOrder()" id="btn-final-order">注文確定</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <script>
+    // --- 1. データ定義（仮のメニューデータ） ---
+    const menuItems = [
+      { id: 1, name: "唐揚げ", price: 500, category: "food" },
+      { id: 2, name: "ポテトサラダ", price: 300, category: "food" },
+      { id: 3, name: "生ビール", price: 550, category: "drink" },
+      { id: 4, name: "ハイボール", price: 450, category: "drink" }
+    ];
 
-<div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-body text-center p-4">
-        <h5 id="messageModalTitle" class="mb-3"></h5>
-        <p id="messageModalBody"></p>
-        <button type="button" class="btn btn-primary mt-3" data-bs-dismiss="modal" onclick="if(shouldReload) location.reload();">OK</button>
-      </div>
-    </div>
-  </div>
-</div>
+    // 注文状態を管理するオブジェクト { id: 数量 }
+    let currentOrder = {};
 
-<script src="config.js"></script>
+    // --- 2. 初期化処理 ---
+    window.onload = function() {
+      renderMenu();
+    };
 
-<script>
-  let cart = [];
-  let allMenuItems = [];
-  let currentCategory = 'ALL';
-  let confirmModal, messageModal;
-  let shouldReload = false;
-  const PLACEHOLDER_IMG = "https://placehold.co/100x100/333/888?text=No+Img";
+    // --- 3. メニュー描画関数 ---
+    function renderMenu() {
+      const container = document.getElementById('menu-container');
+      let html = '';
 
-  window.onload = function() {
-    if (typeof MY_LIFF_ID === 'undefined' || typeof GAS_API_URL === 'undefined') {
-      alert("config.js が見つかりません"); return;
-    }
-    confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
-    messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
-    initializeLiff();
-  };
-
-  function initializeLiff() {
-    liff.init({ liffId: MY_LIFF_ID })
-      .then(() => {
-        if (!liff.isLoggedIn()) {
-          liff.login({ redirectUri: location.href });
-        } else {
-          liff.getProfile().then(p => document.getElementById('user-info').innerText = `Guest: ${p.displayName}`);
-          fetchMenu(); 
-        }
-      })
-      .catch(err => showMessage("Error", "LIFF Init failed: " + err.message));
-  }
-
-  function fetchMenu() {
-    fetch(GAS_API_URL + "?action=getMenu")
-      .then(res => {
-        if (!res.ok) throw new Error("Network error");
-        return res.text().then(text => { try { return JSON.parse(text); } catch(e) { throw new Error("Data Error"); }});
-      })
-      .then(data => {
-         if(data.status === 'error') throw new Error(data.message);
-         allMenuItems = data;
-         initCategoryTabs(allMenuItems);
-         renderMenu();
-      })
-      .catch(err => document.getElementById('menu-list').innerHTML = `<div class="text-danger text-center mt-5">${err.message}</div>`);
-  }
-
-  function initCategoryTabs(items) {
-    const categories = new Set();
-    items.forEach(item => { if(item.category) categories.add(item.category); });
-    const tabContainer = document.getElementById('category-tabs');
-    let html = `<li class="nav-item"><a class="nav-link active" href="#" onclick="filterCategory('ALL', this); return false;">ALL</a></li>`;
-    categories.forEach(cat => {
-      html += `<li class="nav-item"><a class="nav-link" href="#" onclick="filterCategory('${cat}', this); return false;">${cat}</a></li>`;
-    });
-    tabContainer.innerHTML = html;
-  }
-
-  function filterCategory(category, element) {
-    currentCategory = category;
-    document.querySelectorAll('#category-tabs .nav-link').forEach(el => el.classList.remove('active'));
-    element.classList.add('active');
-    renderMenu();
-  }
-
-  function renderMenu() {
-    const container = document.getElementById('menu-list');
-    container.innerHTML = ""; 
-    const itemsToShow = (currentCategory === 'ALL') ? allMenuItems : allMenuItems.filter(item => item.category === currentCategory);
-    if(itemsToShow.length === 0) {
-       container.innerHTML = '<div class="text-secondary text-center mt-5">該当する商品がありません</div>'; return;
-    }
-    itemsToShow.forEach(item => {
-      const isSoldOut = item.isSoldOut;
-      const btnState = isSoldOut ? 'disabled' : '';
-      const btnText = isSoldOut ? 'SOLD OUT' : '追加';
-      const btnClass = isSoldOut ? 'btn-secondary' : 'btn-add';
-      const cardOpacity = isSoldOut ? 'opacity: 0.6;' : '';
-      const imgUrl = convertDriveUrl(item.image);
-      const card = `
-        <div class="card" style="${cardOpacity}">
-          <div class="card-body-custom">
-            <div class="img-area"><img src="${imgUrl}" alt="${item.name}" onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}';"></div>
-            <div class="text-area">
-              <div class="item-name">${item.name}${isSoldOut ? '<span class="badge bg-danger ms-1" style="font-size:0.5em;">売切</span>' : ''}</div>
-              <div class="item-flavor">${item.flavor}</div>
-              <div class="item-price">¥${item.price}</div>
+      menuItems.forEach(item => {
+        const qty = currentOrder[item.id] || 0;
+        
+        html += `
+          <div class="menu-item">
+            <div class="menu-info">
+              <h3>${item.name}</h3>
+              <p>¥${item.price}</p>
             </div>
-            <div class="btn-area"><button class="btn ${btnClass}" onclick="addToCart('${item.id}', '${item.name}', ${item.price})" ${btnState}>${btnText}</button></div>
-          </div>
-        </div>`;
-      container.innerHTML += card;
-    });
-  }
-
-  function convertDriveUrl(url) {
-    if (!url) return PLACEHOLDER_IMG;
-    if (url.includes("/folders/")) return PLACEHOLDER_IMG;
-    let match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (!match) match = url.match(/id=([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-    return url;
-  }
-
-  function addToCart(id, name, price) {
-    cart.push({ id, name, price });
-    updateCartUI();
-  }
-
-  function updateCartUI() {
-    document.getElementById('cart-count').innerText = cart.length;
-    document.getElementById('cart-total').innerText = "¥" + cart.reduce((sum, item) => sum + item.price, 0);
-    if (cart.length > 0) document.getElementById('cart-bar').style.display = 'flex';
-    else document.getElementById('cart-bar').style.display = 'none';
-  }
-
-  // ★変更: モーダル表示時にカートの中身を描画
-  function showConfirmModal() {
-    const container = document.getElementById('cart-items-container');
-    container.innerHTML = "";
-    
-    if (cart.length === 0) {
-      container.innerHTML = "<div class='text-center text-muted'>カートは空です</div>";
-      document.getElementById('btn-final-order').disabled = true;
-    } else {
-      document.getElementById('btn-final-order').disabled = false;
-      let total = 0;
-      cart.forEach((item, index) => {
-        total += item.price;
-        // 削除ボタン付きのリストを作成
-        container.innerHTML += `
-          <div class="cart-list-item">
-            <div>
-              <div style="font-weight:bold;">${item.name}</div>
-              <div class="text-muted small">¥${item.price}</div>
+            <div class="quantity-control">
+              <button class="btn-qty" onclick="changeQty(${item.id}, -1)">-</button>
+              <span class="qty-display" id="qty-${item.id}">${qty}</span>
+              <button class="btn-qty" onclick="changeQty(${item.id}, 1)">+</button>
             </div>
-            <button class="btn-delete" onclick="removeFromCart(${index})">×</button>
           </div>
         `;
       });
-      document.getElementById('cart-grand-total').innerText = "合計: ¥" + total;
+
+      container.innerHTML = html;
     }
-    confirmModal.show();
-  }
 
-  // ★追加: カートから削除する機能
-  function removeFromCart(index) {
-    // 指定したインデックスの商品を1つ削除
-    cart.splice(index, 1);
-    updateCartUI(); // 下のバーを更新
-    showConfirmModal(); // モーダルの中身も再描画
-    // もし全部消したらモーダルを閉じる
-    if(cart.length === 0) confirmModal.hide();
-  }
-
-  function executeOrder() {
-    confirmModal.hide();
-    const btn = document.getElementById('btn-final-order'); // ID変更注意
-    // btnが取得できない場合のガード
-    const cartBtn = document.getElementById('cart-bar').querySelector('button');
-    if(cartBtn) { cartBtn.disabled = true; cartBtn.innerText = "送信中..."; }
-
-    const payload = { accessToken: liff.getAccessToken(), items: cart };
-
-    fetch(GAS_API_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
-    .then(r => r.text().then(t => ({ok: r.ok, text: t})))
-    .then(res => {
-      let data;
-      try { data = JSON.parse(res.text); }
-      catch(e) {
-        if(res.text.includes("success") || res.text.includes("注文完了")) {
-           shouldReload = true; showMessage("Thanks", "注文完了しました (通信不安定)"); return;
-        }
-        throw new Error("通信エラー");
+    // --- 4. 数量変更ロジック ---
+    function changeQty(id, delta) {
+      if (!currentOrder[id]) currentOrder[id] = 0;
+      
+      const newQty = currentOrder[id] + delta;
+      
+      if (newQty >= 0) {
+        currentOrder[id] = newQty;
+        // 表示のみ更新（再描画より高速）
+        document.getElementById(`qty-${id}`).innerText = newQty;
       }
-      if(data.status === "success"){
-        shouldReload = true; showMessage("Thanks!", "注文完了しました！");
-      } else { throw new Error(data.message); }
-    })
-    .catch(err => {
-       if(cartBtn) { cartBtn.disabled = false; cartBtn.innerText = "注文確認"; }
-       showMessage("Error", err.message);
-    });
-  }
+    }
 
-  function showMessage(title, body) {
-    document.getElementById('messageModalTitle').innerText = title;
-    document.getElementById('messageModalBody').innerHTML = body;
-    messageModal.show();
-  }
-</script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    // =========================================
+    // フェーズ1追加：ローディング制御関数
+    // =========================================
+    function showLoading() {
+      const overlay = document.getElementById('loading-overlay');
+      overlay.classList.add('active'); // CSSで表示にする
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loading-overlay');
+      overlay.classList.remove('active'); // CSSで非表示にする
+    }
+
+
+    // --- 5. 注文送信処理（メイン） ---
+    function submitOrder() {
+      // 注文があるかチェック
+      const orderList = Object.keys(currentOrder).filter(id => currentOrder[id] > 0);
+      
+      if (orderList.length === 0) {
+        alert("商品が選択されていません");
+        return;
+      }
+
+      // 1. ローディングを表示（ボタン操作ブロック）
+      showLoading();
+
+      // 送信データ作成
+      const orderData = orderList.map(id => {
+        const item = menuItems.find(m => m.id == id);
+        return { name: item.name, price: item.price, quantity: currentOrder[id] };
+      });
+
+      console.log("送信データ:", orderData);
+
+      // --- GAS連携部分（ここを本番用に書き換える） ---
+      
+      // 【テスト用】擬似的な遅延（2秒後に成功とみなす）
+      /*
+      setTimeout(() => {
+        // 成功時の処理
+        hideLoading(); // 2. ローディング消去
+        alert("注文が完了しました！\n（フェーズ2でここに提案が入ります）");
+        
+        // 注文リセット
+        currentOrder = {};
+        renderMenu();
+        
+      }, 2000); 
+      */
+
+      // 【本番用】GASへ送信する場合はコメントアウトを外し、上記テスト用を削除してください
+      /*
+      google.script.run
+        .withSuccessHandler(function(response) {
+            hideLoading(); // 成功時にローディング消去
+            alert("注文を受け付けました！");
+            currentOrder = {}; // リセット
+            renderMenu();
+        })
+        .withFailureHandler(function(error) {
+            hideLoading(); // エラー時も必ず消去
+            alert("エラーが発生しました。もう一度お試しください。");
+        })
+        .processOrder(orderData); // サーバー側の関数名
+      */
+      
+      // ※現在は動作確認用にsetTimeoutのみ有効にしています
+      setTimeout(() => {
+        hideLoading();
+        alert("【送信完了】\n注文が正常に送信されました。");
+        // リセット処理
+        currentOrder = {};
+        renderMenu();
+      }, 1500);
+    }
+
+  </script>
 </body>
 </html>
