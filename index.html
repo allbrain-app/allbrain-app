@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bar Order</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Bar用ダークテーマ */
+    body { background-color: #121212; color: #e0e0e0; font-family: 'Helvetica Neue', Arial, sans-serif; padding-bottom: 100px; }
+    .container { max-width: 600px; }
+    
+    /* カードデザイン */
+    .card { background-color: #1e1e1e; border: 1px solid #333; margin-bottom: 15px; border-radius: 12px; transition: transform 0.1s; }
+    .card:active { transform: scale(0.98); }
+    .card-title { color: #fff; font-weight: bold; font-size: 1.1em; margin-bottom: 0.2rem; }
+    .flavor-tag { font-size: 0.85em; color: #aaaaaa; font-style: italic; margin-bottom: 0.5rem; }
+    .price { color: #bb86fc; font-size: 1.2em; font-weight: bold; }
+    
+    /* ボタン類 */
+    .btn-add { background-color: #03dac6; color: #000; border: none; font-weight: bold; border-radius: 20px; padding: 5px 20px; }
+    .btn-add:hover { background-color: #01877e; color: #fff; }
+    
+    /* 下部カートバー */
+    .cart-bar { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #2c2c2c; padding: 15px 20px; border-top: 1px solid #444; z-index: 1000; display: none; box-shadow: 0 -4px 10px rgba(0,0,0,0.5); }
+    .cart-info { font-size: 1.1em; }
+    
+    /* ローディング表示 */
+    .loading-container { text-align: center; margin-top: 50px; color: #888; }
+    .spinner-border { width: 3rem; height: 3rem; }
+  </style>
+</head>
+<body>
+
+<div class="container mt-4">
+  <h4 class="mb-4 text-center text-white" style="letter-spacing: 2px;">DRINK MENU</h4>
+  
+  <div id="user-info" class="text-center mb-4" style="color:#666; font-size:0.8em;"></div>
+
+  <div id="menu-list">
+    <div class="loading-container">
+      <div class="spinner-border text-light" role="status"></div>
+      <div class="mt-3">Loading Menu...</div>
+    </div>
+  </div>
+</div>
+
+<div id="cart-bar" class="cart-bar d-flex justify-content-between align-items-center">
+  <div class="cart-info">
+    <span id="cart-count" class="badge bg-danger rounded-pill">0</span> 
+    <span class="text-secondary" style="font-size:0.8em;">items</span>
+    <span id="cart-total" class="ms-2 text-white">¥0</span>
+  </div>
+  <button onclick="sendOrder()" class="btn btn-primary px-4 fw-bold">注文する</button>
+</div>
+
+<script>
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+  // 【設定エリア】ここをご自身のIDとURLに書き換えてください
+  
+  // 1. LINE LoginチャネルのLIFF ID (例: 12345678-Abcdefgh)
+  const MY_LIFF_ID = "2008984506-BwmXmwno"; 
+
+  // 2. GASのウェブアプリURL (末尾が /exec のもの)
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzAwiJ9Gk1OqEtf5mxnKF-_fu4HzrH-WCbkE2LlqfdTIV9fnv3bleJHyVtAmrEoGuZ1mg/exec";
+  
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+  let cart = [];
+
+  // ページ読み込み時に実行
+  window.onload = function() {
+    console.log("App Started.");
+    initializeLiff();
+  };
+
+  // 1. LIFF初期化 & ログイン処理
+  function initializeLiff() {
+    liff.init({ liffId: MY_LIFF_ID })
+      .then(() => {
+        // 未ログインなら強制的にログイン画面へ
+        if (!liff.isLoggedIn()) {
+          console.log("未ログイン: ログイン画面へ移動します");
+          liff.login({ redirectUri: location.href });
+        } else {
+          // ログイン済みならメニュー取得開始
+          console.log("ログイン済み");
+          liff.getProfile().then(profile => {
+            document.getElementById('user-info').innerText = `Logged in as: ${profile.displayName}`;
+          });
+          fetchMenu(); 
+        }
+      })
+      .catch(err => {
+        // ID間違いなどの設定ミス
+        document.getElementById('menu-list').innerHTML = 
+          `<div class="text-danger text-center mt-5">LIFF初期化エラー<br>${err.message}<br><small>LIFF IDを確認してください</small></div>`;
+      });
+  }
+
+  // 2. GASからメニューデータを取得 (GET)
+  function fetchMenu() {
+    fetch(GAS_API_URL + "?action=getMenu")
+      .then(response => response.json())
+      .then(data => {
+        displayMenu(data);
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('menu-list').innerHTML = 
+          `<div class="text-danger text-center mt-5">メニュー読み込み失敗<br>${err.message}<br><small>GASのURLまたはデプロイ設定を確認してください</small></div>`;
+      });
+  }
+
+  // 3. 画面描画
+  function displayMenu(items) {
+    const container = document.getElementById('menu-list');
+    container.innerHTML = ""; 
+    
+    if(!items || items.length === 0) {
+       container.innerHTML = '<div class="text-secondary text-center mt-5">メニューがありません</div>';
+       return;
+    }
+    
+    items.forEach(item => {
+      const card = `
+        <div class="card p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div style="flex: 1;">
+              <div class="card-title">${item.name}</div>
+              <div class="flavor-tag">${item.flavor}</div>
+              <div class="price">¥${item.price}</div>
+            </div>
+            <div>
+              <button class="btn btn-add" onclick="addToCart('${item.id}', '${item.name}', ${item.price})">追加</button>
+            </div>
+          </div>
+        </div>`;
+      container.innerHTML += card;
+    });
+  }
+
+  // 4. カート機能
+  function addToCart(id, name, price) {
+    cart.push({ id, name, price });
+    updateCartUI();
+  }
+
+  function updateCartUI() {
+    document.getElementById('cart-count').innerText = cart.length;
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
+    document.getElementById('cart-total').innerText = "¥" + total;
+    
+    // カートに商品が入ったら下部バーを表示
+    const cartBar = document.getElementById('cart-bar');
+    if (cart.length > 0) {
+      cartBar.style.display = 'flex';
+    }
+  }
+
+  // 5. 注文送信 (セキュリティ対策済み: POST)
+  function sendOrder() {
+    if(!confirm("注文を確定しますか？")) return;
+    
+    const btn = document.querySelector('#cart-bar button');
+    btn.disabled = true;
+    btn.innerText = "送信中...";
+
+    // ★重要: LIFFからアクセストークン(本人証明書)を取得
+    const accessToken = liff.getAccessToken();
+
+    // GASへ送るデータ
+    const payload = {
+      accessToken: accessToken, // ここが鍵になります
+      items: cart
+    };
+
+    fetch(GAS_API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(result => {
+      if(result.status === "success"){
+        alert("ご注文ありがとうございます！\n注文が完了しました。");
+        // リロードしてカートをリセット
+        location.reload(); 
+      } else {
+        alert("注文エラー: " + result.message);
+        btn.disabled = false;
+        btn.innerText = "注文する";
+      }
+    })
+    .catch(err => {
+       alert("通信エラーが発生しました。\n" + err.message);
+       btn.disabled = false;
+       btn.innerText = "注文する";
+    });
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
