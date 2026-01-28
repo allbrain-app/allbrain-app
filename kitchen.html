@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Monitor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #222; color: #fff; font-family: sans-serif; padding: 20px; }
+    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+    
+    /* 注文チケットのデザイン */
+    .order-card { 
+      background-color: #333; border: 1px solid #444; border-radius: 8px; 
+      margin-bottom: 15px; padding: 15px; width: 100%;
+      border-left: 5px solid #03dac6; /* 未提供カラー */
+    }
+    .order-time { font-size: 1.2rem; font-weight: bold; color: #03dac6; }
+    .order-user { font-size: 0.9rem; color: #aaa; }
+    .order-items { font-size: 1.1rem; margin: 10px 0; font-weight: bold; line-height: 1.6; }
+    .btn-done { width: 100%; height: 50px; font-size: 1.2rem; font-weight: bold; }
+    
+    /* 更新ボタンのアニメーション */
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-area">
+    <h2>🍽 Kitchen Monitor</h2>
+    <button class="btn btn-outline-light" onclick="loadOrders()" id="btn-refresh">🔄 更新</button>
+  </div>
+
+  <div id="order-list">
+    <div class="text-center text-secondary mt-5">読み込み中...</div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+
+<script>
+  window.onload = function() {
+    if (typeof GAS_API_URL === 'undefined') { alert("config.js error"); return; }
+    loadOrders();
+    // 30秒ごとに自動更新
+    setInterval(loadOrders, 30000);
+  };
+
+  function loadOrders() {
+    const btn = document.getElementById('btn-refresh');
+    btn.innerHTML = "🔄 ...";
+    btn.classList.add('spin');
+
+    fetch(GAS_API_URL + "?action=getOrders")
+      .then(res => res.json())
+      .then(data => {
+        displayOrders(data);
+        btn.innerHTML = "🔄 更新";
+        btn.classList.remove('spin');
+      })
+      .catch(err => {
+        console.error(err);
+        btn.innerHTML = "⚠️ エラー";
+      });
+  }
+
+  function displayOrders(orders) {
+    const container = document.getElementById('order-list');
+    container.innerHTML = "";
+
+    if (!orders || orders.length === 0) {
+      container.innerHTML = '<div class="text-center text-secondary mt-5">現在、未提供の注文はありません ✅</div>';
+      return;
+    }
+
+    orders.forEach(order => {
+      // アイテムリストをHTML化
+      const itemsHtml = order.items.map(item => `<div>・${item}</div>`).join("");
+      
+      const card = `
+        <div class="order-card" id="card-${order.id}">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="order-time">${order.time}</span>
+              <span class="order-user ms-2">${order.user} 様</span>
+            </div>
+          </div>
+          <hr style="margin:8px 0; border-color:#555;">
+          <div class="order-items">
+            ${itemsHtml}
+          </div>
+          <div class="mt-3">
+            <button class="btn btn-success btn-done" onclick="completeOrder('${order.id}')">提供完了</button>
+          </div>
+        </div>
+      `;
+      container.innerHTML += card;
+    });
+  }
+
+  function completeOrder(orderId) {
+    if(!confirm("提供完了にしますか？")) return;
+
+    // 画面から先に消す（サクサク感のため）
+    const card = document.getElementById(`card-${orderId}`);
+    if(card) card.style.opacity = "0.3";
+
+    const payload = {
+      action: "completeOrder",
+      orderId: orderId
+    };
+
+    fetch(GAS_API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.status === "success") {
+        if(card) card.remove();
+        // もし全部消えたらメッセージを出す
+        if(document.querySelectorAll('.order-card').length === 0) {
+          loadOrders(); 
+        }
+      } else {
+        alert("エラー: " + data.message);
+        loadOrders(); // 戻す
+      }
+    })
+    .catch(err => {
+      alert("通信エラー");
+      loadOrders();
+    });
+  }
+</script>
+
+</body>
+</html>
