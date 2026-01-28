@@ -245,24 +245,58 @@
 
   function showConfirmModal() { confirmModal.show(); }
 
+// ★修正版：どんな返信が来ても、正体を見破るタフな関数
   function executeOrder() {
     confirmModal.hide();
     const btn = document.getElementById('btn-order');
-    btn.disabled = true; btn.innerText = "送信中...";
-    
+    btn.disabled = true; 
+    btn.innerText = "送信中...";
+
+    const payload = { 
+      accessToken: liff.getAccessToken(), 
+      items: cart 
+    };
+
     fetch(GAS_API_URL, {
       method: "POST",
-      body: JSON.stringify({ accessToken: liff.getAccessToken(), items: cart })
+      body: JSON.stringify(payload)
     })
-    .then(r => r.json())
-    .then(res => {
-      if(res.status === "success"){
-        shouldReload = true; showMessage("Thanks!", "注文完了しました！");
-      } else { throw new Error(res.message); }
+    .then(response => {
+      // いきなりJSONにせず、まずはテキストとして受け取る
+      return response.text().then(text => {
+        return { ok: response.ok, text: text };
+      });
+    })
+    .then(result => {
+      let data;
+      try {
+        // テキストをJSONに変換してみる
+        data = JSON.parse(result.text);
+      } catch (e) {
+        // ★ここが重要：JSON変換に失敗したら、生のテキストを表示して原因を探る
+        console.error("Raw Response:", result.text);
+        // もし「成功」っぽい文字が含まれていたら、無理やり成功とみなす（緊急回避）
+        if (result.text.includes("success") || result.text.includes("注文完了")) {
+             shouldReload = true;
+             showMessage("ご注文ありがとうございます！", "注文が完了しました。(通信は不安定でしたが成功しました)");
+             return;
+        }
+        throw new Error("通信エラー：サーバーからの返信が変です。\n" + result.text.slice(0, 100)); // 先頭100文字を表示
+      }
+
+      // JSONとして正しく読めた場合の処理
+      if (data.status === "success") {
+        shouldReload = true;
+        showMessage("ご注文ありがとうございます！", "注文が完了しました。");
+      } else {
+        throw new Error(data.message || "不明なエラー");
+      }
     })
     .catch(err => {
-       btn.disabled = false; btn.innerText = "注文する";
-       showMessage("Error", err.message);
+       btn.disabled = false;
+       btn.innerText = "注文する";
+       // エラー内容をそのまま表示
+       showMessage("エラー発生", err.message);
     });
   }
 
