@@ -1,7 +1,7 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-let confirmModal, messageModal;
+let confirmModal, messageModal, recommendModal; // ★ recommendModal を追加
 let shouldReload = false;
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/333/888?text=No+Img";
 
@@ -12,6 +12,10 @@ window.onload = function() {
   }
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
+  
+  // ★追加: レコメンドモーダルの初期化
+  recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
+
   initializeLiff();
 };
 
@@ -146,11 +150,9 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// ▼▼▼ フェーズ1修正: 注文実行処理 ▼▼▼
+// 注文実行処理 (フェーズ2修正)
 function executeOrder() {
-  confirmModal.hide(); // 確認画面を閉じる
-  
-  // ★追加: ロード画面を表示
+  confirmModal.hide(); 
   showLoading();
 
   const payload = { accessToken: liff.getAccessToken(), items: cart };
@@ -166,8 +168,10 @@ function executeOrder() {
     catch(e) {
       if(res.text.includes("success") || res.text.includes("注文完了")) {
          shouldReload = true; 
-         hideLoading(); // ★追加
-         showMessage("Thanks", "注文完了しました (通信不安定)"); 
+         hideLoading();
+         // 救済措置の場合もレコメンドへ
+         recommendModal.show(); 
+         cart = []; updateCartUI();
          return;
       }
       throw new Error("通信エラー");
@@ -175,14 +179,21 @@ function executeOrder() {
     
     if(data.status === "success"){
       shouldReload = true;
-      hideLoading(); // ★追加
-      showMessage("Thanks!", "注文完了しました！");
+      hideLoading();
+      
+      // ★修正: メッセージではなくレコメンド画面を表示
+      recommendModal.show();
+      
+      // 注文済みなのでカートを空にする
+      cart = [];
+      updateCartUI();
+      
     } else { 
       throw new Error(data.message); 
     }
   })
   .catch(err => {
-     hideLoading(); // ★追加
+     hideLoading();
      showMessage("Error", err.message);
   });
 }
@@ -193,7 +204,7 @@ function showMessage(title, body) {
   messageModal.show();
 }
 
-// ▼▼▼ フェーズ1追加: ローディング制御関数 ▼▼▼
+// ローディング制御関数
 function showLoading() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.remove('overlay-hidden');
@@ -202,4 +213,10 @@ function showLoading() {
 function hideLoading() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.add('overlay-hidden');
+}
+
+// ★追加: レコメンドモーダルからの完了フロー
+function finishOrderFlow() {
+  recommendModal.hide();
+  showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
