@@ -12,6 +12,10 @@
 </head>
 <body>
 
+  <div class="history-btn-container">
+    <button class="btn btn-history" onclick="openHistoryModal()">📜 履歴・会計</button>
+  </div>
+
   <div class="container mt-4">
     <h4 class="mb-4 text-center text-white" style="letter-spacing: 2px;">DRINK MENU</h4>
     <div id="user-info" class="text-center mb-4 text-secondary small"></div>
@@ -85,6 +89,49 @@
         <div class="modal-footer border-0 justify-content-center flex-column">
           <button class="btn btn-primary w-100 fw-bold mb-2" onclick="finishOrderFlow()">メニューを見る（追加注文）</button>
           <button class="btn btn-outline-secondary w-100" onclick="finishOrderFlow()">会計・終了へ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">注文履歴・お会計</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          
+          <ul class="nav nav-pills mb-3 nav-fill" id="history-tabs">
+            <li class="nav-item">
+              <button class="nav-link active" onclick="switchHistoryTab('current')">現在のご注文</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" onclick="switchHistoryTab('past')">過去の履歴</button>
+            </li>
+          </ul>
+
+          <div id="tab-current" class="history-tab-content">
+            <div id="current-order-list" class="current-order-list">
+              <div class="text-center text-muted">読み込み中...</div>
+            </div>
+            
+            <div class="total-display">
+              合計: <span id="current-total-price" style="color:#03dac6;">¥0</span>
+            </div>
+
+            <button class="btn btn-primary w-100 fw-bold py-3 mt-2" id="btn-checkout" onclick="confirmCheckout()">
+              お会計を確定する
+            </button>
+            <p class="text-muted small text-center mt-2">※店員をお呼びします</p>
+          </div>
+
+          <div id="tab-past" class="history-tab-content" style="display:none;">
+            <div id="past-order-container">
+              </div>
+          </div>
+
         </div>
       </div>
     </div>
