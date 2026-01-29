@@ -382,3 +382,114 @@ function confirmCheckout() {
     btn.innerText = originalText;
   });
 }
+
+// --- 既存の変数の下に追加 ---
+let myPageModal;
+let tasteChartInstance = null; // チャートのインスタンス保持用
+
+// window.onload内の初期化に以下を追加
+/*
+  // フェーズ4追加
+  myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
+*/
+// ※上記の追加が面倒な場合は、以下の関数呼び出し時に初期化するロジックが含まれています。
+
+// ▼▼▼ フェーズ4追加: マイページ & チャートロジック ▼▼▼
+
+function openMyPageModal() {
+  if (!myPageModal) myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
+  myPageModal.show();
+  
+  // データをロードして描画
+  loadAndRenderChart();
+}
+
+function loadAndRenderChart() {
+  if (!liff.isLoggedIn()) {
+    alert("分析にはログインが必要です");
+    return;
+  }
+
+  // 1. プロフィール取得 -> 2. 履歴取得 -> 3. 分析 -> 4. 描画
+  liff.getProfile().then(profile => {
+    fetch(`${GAS_API_URL}?action=getHistory&userId=${profile.userId}`)
+      .then(res => res.json())
+      .then(historyData => {
+        // 現在の注文(current)と過去の注文(past)を結合して分析対象にする
+        const allItems = [];
+        historyData.current.forEach(item => allItems.push(item.name));
+        historyData.past.forEach(order => {
+          order.items.forEach(i => allItems.push(i.name));
+        });
+        
+        calculateAndDraw(allItems);
+      });
+  });
+}
+
+function calculateAndDraw(itemNames) {
+  // 5つのパラメータ合計
+  let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
+  let count = 0;
+
+  // 全メニューデータ(allMenuItems)から、食べた商品のパラメータを足し合わせる
+  itemNames.forEach(name => {
+    const masterItem = allMenuItems.find(m => m.name === name);
+    if (masterItem && masterItem.params) {
+      stats.salty += masterItem.params.salty;
+      stats.sweet += masterItem.params.sweet;
+      stats.sour += masterItem.params.sour;
+      stats.bitter += masterItem.params.bitter;
+      stats.rich += masterItem.params.rich;
+      count++;
+    }
+  });
+
+  // 平均値を算出 (食べたものがなければオール0)
+  const data = count === 0 ? [0,0,0,0,0] : [
+    (stats.salty / count).toFixed(1),
+    (stats.sweet / count).toFixed(1),
+    (stats.sour / count).toFixed(1),
+    (stats.bitter / count).toFixed(1),
+    (stats.rich / count).toFixed(1)
+  ];
+
+  drawChart(data);
+}
+
+function drawChart(dataValues) {
+  const ctx = document.getElementById('tasteChart').getContext('2d');
+  
+  // 既存のチャートがあれば破棄 (再描画のため)
+  if (tasteChartInstance) {
+    tasteChartInstance.destroy();
+  }
+
+  tasteChartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['塩味', '甘味', '酸味', '苦味', 'コク'],
+      datasets: [{
+        label: 'あなたの好み傾向',
+        data: dataValues, // 計算した平均値
+        backgroundColor: 'rgba(187, 134, 252, 0.2)', // テーマカラー(紫)の半透明
+        borderColor: '#bb86fc',
+        pointBackgroundColor: '#03dac6',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      scales: {
+        r: {
+          angleLines: { color: '#444' },     // 放射状の線
+          grid: { color: '#444' },           // クモの巣状の線
+          pointLabels: { color: '#fff', font: {size: 12} }, // ラベル色
+          ticks: { display: false, max: 5, min: 0 } // 目盛り数字は消す
+        }
+      },
+      plugins: {
+        legend: { display: false } // 凡例は消す
+      }
+    }
+  });
+}
