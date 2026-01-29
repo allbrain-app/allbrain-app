@@ -1,7 +1,8 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-let confirmModal, messageModal, recommendModal; // ★ recommendModal を追加
+let confirmModal, messageModal, recommendModal, historyModal, myPageModal;
+let tasteChartInstance = null;
 let shouldReload = false;
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/333/888?text=No+Img";
 
@@ -12,9 +13,12 @@ window.onload = function() {
   }
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
-  
-  // ★追加: レコメンドモーダルの初期化
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
+  
+  // フェーズ3: 履歴用
+  historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+  // フェーズ4: マイページ用
+  myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
 
   initializeLiff();
 };
@@ -150,7 +154,6 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// 注文実行処理 (フェーズ2修正)
 function executeOrder() {
   confirmModal.hide(); 
   showLoading();
@@ -167,12 +170,7 @@ function executeOrder() {
     try { data = JSON.parse(res.text); }
     catch(e) {
       if(res.text.includes("success") || res.text.includes("注文完了")) {
-         shouldReload = true; 
-         hideLoading();
-         // 救済措置の場合もレコメンドへ
-         recommendModal.show(); 
-         cart = []; updateCartUI();
-         return;
+         shouldReload = true; hideLoading(); recommendModal.show(); cart = []; updateCartUI(); return;
       }
       throw new Error("通信エラー");
     }
@@ -180,14 +178,9 @@ function executeOrder() {
     if(data.status === "success"){
       shouldReload = true;
       hideLoading();
-      
-      // ★修正: メッセージではなくレコメンド画面を表示
       recommendModal.show();
-      
-      // 注文済みなのでカートを空にする
       cart = [];
       updateCartUI();
-      
     } else { 
       throw new Error(data.message); 
     }
@@ -204,7 +197,6 @@ function showMessage(title, body) {
   messageModal.show();
 }
 
-// ローディング制御関数
 function showLoading() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.remove('overlay-hidden');
@@ -215,28 +207,12 @@ function hideLoading() {
   overlay.classList.add('overlay-hidden');
 }
 
-// ★追加: レコメンドモーダルからの完了フロー
 function finishOrderFlow() {
   recommendModal.hide();
   showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
 
-
-// ▼▼▼ フェーズ3追加: 履歴・会計ロジック ▼▼▼
-
-let historyModal;
-
-// 初期化に追加 (window.onload内に追加してください)
-/*
-  historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
-*/
-// ↑ これを既存の window.onload 内の confirmModal 等の初期化の下に追加します。
-// その上で、以下の関数を script.js の末尾に貼り付けてください。
-
-// ★注意: window.onload の中身を書き換えるのを忘れないでください。
-// 面倒であれば、ファイルの末尾に以下を追記するだけでも動くように設計します。
-// ただし、本来は onload 内で new bootstrap.Modal するのが綺麗です。
-// ここでは関数呼び出し時に初期化チェックを行う安全策をとります。
+// ▼▼▼ フェーズ3: 履歴・会計 ▼▼▼
 
 function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
@@ -245,11 +221,8 @@ function openHistoryModal() {
 }
 
 function switchHistoryTab(tabName) {
-  // タブの見た目
   document.querySelectorAll('#history-tabs .nav-link').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active'); // クリックされたボタンをactiveに
-
-  // コンテンツの切り替え
+  event.target.classList.add('active');
   document.getElementById('tab-current').style.display = (tabName === 'current') ? 'block' : 'none';
   document.getElementById('tab-past').style.display = (tabName === 'past') ? 'block' : 'none';
 }
@@ -257,8 +230,6 @@ function switchHistoryTab(tabName) {
 function fetchHistoryData() {
   const currentContainer = document.getElementById('current-order-list');
   const pastContainer = document.getElementById('past-order-container');
-  
-  // 読み込み中表示
   currentContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-light"></div></div>';
   
   if (!liff.isLoggedIn()) {
@@ -266,15 +237,11 @@ function fetchHistoryData() {
     return;
   }
 
-  // プロファイル取得してから履歴APIを叩く
   liff.getProfile().then(profile => {
     const url = `${GAS_API_URL}?action=getHistory&userId=${profile.userId}`;
-    
     fetch(url)
       .then(res => res.json())
-      .then(data => {
-        renderHistory(data);
-      })
+      .then(data => { renderHistory(data); })
       .catch(err => {
         currentContainer.innerHTML = `<div class="text-danger text-center">エラー: ${err.message}</div>`;
       });
@@ -282,7 +249,6 @@ function fetchHistoryData() {
 }
 
 function renderHistory(data) {
-  // 1. 現在の注文 (未会計)
   const currentContainer = document.getElementById('current-order-list');
   const totalDisplay = document.getElementById('current-total-price');
   const checkoutBtn = document.getElementById('btn-checkout');
@@ -297,12 +263,7 @@ function renderHistory(data) {
     let total = 0;
     data.current.forEach(item => {
       total += Number(item.price);
-      html += `
-        <div class="history-item-row">
-          <div>${item.name}</div>
-          <div>¥${item.price}</div>
-        </div>
-      `;
+      html += `<div class="history-item-row"><div>${item.name}</div><div>¥${item.price}</div></div>`;
     });
     currentContainer.innerHTML = html;
     totalDisplay.innerText = "¥" + total;
@@ -310,30 +271,21 @@ function renderHistory(data) {
     checkoutBtn.innerText = "お会計を確定する";
   }
 
-  // 2. 過去の履歴 (会計済み)
   const pastContainer = document.getElementById('past-order-container');
   if (data.past.length === 0) {
     pastContainer.innerHTML = '<div class="text-center text-secondary py-3">過去の履歴はありません</div>';
   } else {
     let html = '';
     data.past.forEach((order, index) => {
-      // order = { id, time, total, items: [{name, price}, ...] }
       const itemsHtml = order.items.map(i => `<div>・${i.name} (¥${i.price})</div>`).join("");
-      
       html += `
         <div class="past-order-card">
           <div class="past-order-header" onclick="toggleAccordion('past-body-${index}')">
-            <div>
-              <span style="color:#03dac6; font-weight:bold;">${order.time}</span>
-              <span class="ms-2 small text-secondary">会計済</span>
-            </div>
+            <div><span style="color:#03dac6; font-weight:bold;">${order.time}</span><span class="ms-2 small text-secondary">会計済</span></div>
             <div class="fw-bold">¥${order.total} ▼</div>
           </div>
-          <div id="past-body-${index}" class="past-order-body">
-            ${itemsHtml}
-          </div>
-        </div>
-      `;
+          <div id="past-body-${index}" class="past-order-body">${itemsHtml}</div>
+        </div>`;
     });
     pastContainer.innerHTML = html;
   }
@@ -346,93 +298,47 @@ function toggleAccordion(id) {
 }
 
 function confirmCheckout() {
-  if (!confirm("お会計を確定しますか？\n（店員が席へ向かいます）")) return;
-  
-  // ボタンをローディング状態に
+  if (!confirm("お会計を確定しますか？")) return;
   const btn = document.getElementById('btn-checkout');
-  const originalText = btn.innerText;
-  btn.disabled = true;
-  btn.innerText = "送信中...";
-
-  const payload = { 
-    action: "checkout", 
-    accessToken: liff.getAccessToken() 
-  };
-
-  fetch(GAS_API_URL, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  })
+  btn.disabled = true; btn.innerText = "送信中...";
+  const payload = { action: "checkout", accessToken: liff.getAccessToken() };
+  
+  fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
   .then(data => {
     if (data.status === "success") {
-      alert("お会計を承りました。\nそのままお席でお待ちください。");
-      historyModal.hide();
-      // 画面リロードして状態を最新にする（現在の注文がゼロになり、過去履歴が増える）
-      setTimeout(() => location.reload(), 500); 
-    } else {
-      alert("エラー: " + data.message);
-      btn.disabled = false;
-      btn.innerText = originalText;
-    }
+      alert("お会計を承りました。"); historyModal.hide(); setTimeout(() => location.reload(), 500);
+    } else { alert("エラー: " + data.message); btn.disabled = false; btn.innerText = "お会計を確定する"; }
   })
-  .catch(err => {
-    alert("通信エラー");
-    btn.disabled = false;
-    btn.innerText = originalText;
-  });
+  .catch(err => { alert("通信エラー"); btn.disabled = false; btn.innerText = "お会計を確定する"; });
 }
 
-// --- 既存の変数の下に追加 ---
-let myPageModal;
-let tasteChartInstance = null; // チャートのインスタンス保持用
-
-// window.onload内の初期化に以下を追加
-/*
-  // フェーズ4追加
-  myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
-*/
-// ※上記の追加が面倒な場合は、以下の関数呼び出し時に初期化するロジックが含まれています。
-
-// ▼▼▼ フェーズ4追加: マイページ & チャートロジック ▼▼▼
+// ▼▼▼ フェーズ4: マイページ & チャート & Gemini連携 ▼▼▼
 
 function openMyPageModal() {
   if (!myPageModal) myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
   myPageModal.show();
-  
-  // データをロードして描画
   loadAndRenderChart();
 }
 
 function loadAndRenderChart() {
-  if (!liff.isLoggedIn()) {
-    alert("分析にはログインが必要です");
-    return;
-  }
-
-  // 1. プロフィール取得 -> 2. 履歴取得 -> 3. 分析 -> 4. 描画
+  if (!liff.isLoggedIn()) { alert("ログインが必要です"); return; }
   liff.getProfile().then(profile => {
     fetch(`${GAS_API_URL}?action=getHistory&userId=${profile.userId}`)
       .then(res => res.json())
       .then(historyData => {
-        // 現在の注文(current)と過去の注文(past)を結合して分析対象にする
         const allItems = [];
         historyData.current.forEach(item => allItems.push(item.name));
-        historyData.past.forEach(order => {
-          order.items.forEach(i => allItems.push(i.name));
-        });
-        
+        historyData.past.forEach(order => { order.items.forEach(i => allItems.push(i.name)); });
         calculateAndDraw(allItems);
       });
   });
 }
 
 function calculateAndDraw(itemNames) {
-  // 5つのパラメータ合計
   let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
   let count = 0;
 
-  // 全メニューデータ(allMenuItems)から、食べた商品のパラメータを足し合わせる
   itemNames.forEach(name => {
     const masterItem = allMenuItems.find(m => m.name === name);
     if (masterItem && masterItem.params) {
@@ -445,34 +351,33 @@ function calculateAndDraw(itemNames) {
     }
   });
 
-  // 平均値を算出 (食べたものがなければオール0)
-  const data = count === 0 ? [0,0,0,0,0] : [
-    (stats.salty / count).toFixed(1),
-    (stats.sweet / count).toFixed(1),
-    (stats.sour / count).toFixed(1),
-    (stats.bitter / count).toFixed(1),
-    (stats.rich / count).toFixed(1)
-  ];
+  const avgStats = count === 0 ? { salty:0, sweet:0, sour:0, bitter:0, rich:0 } : {
+    salty: Number((stats.salty / count).toFixed(1)),
+    sweet: Number((stats.sweet / count).toFixed(1)),
+    sour:  Number((stats.sour / count).toFixed(1)),
+    bitter: Number((stats.bitter / count).toFixed(1)),
+    rich:  Number((stats.rich / count).toFixed(1))
+  };
 
-  drawChart(data);
+  const dataValues = [avgStats.salty, avgStats.sweet, avgStats.sour, avgStats.bitter, avgStats.rich];
+  drawChart(dataValues);
+  
+  // ★追加: グラフ描画後にAIコメントを取得
+  fetchAiComment(avgStats, itemNames);
 }
 
 function drawChart(dataValues) {
   const ctx = document.getElementById('tasteChart').getContext('2d');
-  
-  // 既存のチャートがあれば破棄 (再描画のため)
-  if (tasteChartInstance) {
-    tasteChartInstance.destroy();
-  }
+  if (tasteChartInstance) tasteChartInstance.destroy();
 
   tasteChartInstance = new Chart(ctx, {
     type: 'radar',
     data: {
       labels: ['塩味', '甘味', '酸味', '苦味', 'コク'],
       datasets: [{
-        label: 'あなたの好み傾向',
-        data: dataValues, // 計算した平均値
-        backgroundColor: 'rgba(187, 134, 252, 0.2)', // テーマカラー(紫)の半透明
+        label: '好み傾向',
+        data: dataValues,
+        backgroundColor: 'rgba(187, 134, 252, 0.2)',
         borderColor: '#bb86fc',
         pointBackgroundColor: '#03dac6',
         borderWidth: 2
@@ -481,15 +386,44 @@ function drawChart(dataValues) {
     options: {
       scales: {
         r: {
-          angleLines: { color: '#444' },     // 放射状の線
-          grid: { color: '#444' },           // クモの巣状の線
-          pointLabels: { color: '#fff', font: {size: 12} }, // ラベル色
-          ticks: { display: false, max: 5, min: 0 } // 目盛り数字は消す
+          angleLines: { color: '#444' }, grid: { color: '#444' },
+          pointLabels: { color: '#fff', font: {size: 12} },
+          ticks: { display: false, max: 5, min: 0 }
         }
       },
-      plugins: {
-        legend: { display: false } // 凡例は消す
-      }
+      plugins: { legend: { display: false } }
     }
+  });
+}
+
+function fetchAiComment(stats, historyItems) {
+  const commentBox = document.querySelector('#myPageModal .text-light');
+  commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-warning" role="status"></span> 分析中... AIがコメントを考えています';
+
+  if (historyItems.length === 0) {
+    commentBox.innerText = "まだデータがありません。注文するとAIが分析を開始します！";
+    return;
+  }
+
+  const payload = {
+    action: "getAiComment",
+    stats: stats,
+    history: historyItems
+  };
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === "success") {
+      commentBox.innerText = data.message;
+    } else {
+      commentBox.innerText = "コメントの取得に失敗しました。";
+    }
+  })
+  .catch(err => {
+    commentBox.innerText = "通信エラーが発生しました。";
   });
 }
