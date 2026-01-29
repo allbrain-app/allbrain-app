@@ -220,3 +220,165 @@ function finishOrderFlow() {
   recommendModal.hide();
   showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
+
+
+// ▼▼▼ フェーズ3追加: 履歴・会計ロジック ▼▼▼
+
+let historyModal;
+
+// 初期化に追加 (window.onload内に追加してください)
+/*
+  historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+*/
+// ↑ これを既存の window.onload 内の confirmModal 等の初期化の下に追加します。
+// その上で、以下の関数を script.js の末尾に貼り付けてください。
+
+// ★注意: window.onload の中身を書き換えるのを忘れないでください。
+// 面倒であれば、ファイルの末尾に以下を追記するだけでも動くように設計します。
+// ただし、本来は onload 内で new bootstrap.Modal するのが綺麗です。
+// ここでは関数呼び出し時に初期化チェックを行う安全策をとります。
+
+function openHistoryModal() {
+  if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+  historyModal.show();
+  fetchHistoryData();
+}
+
+function switchHistoryTab(tabName) {
+  // タブの見た目
+  document.querySelectorAll('#history-tabs .nav-link').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active'); // クリックされたボタンをactiveに
+
+  // コンテンツの切り替え
+  document.getElementById('tab-current').style.display = (tabName === 'current') ? 'block' : 'none';
+  document.getElementById('tab-past').style.display = (tabName === 'past') ? 'block' : 'none';
+}
+
+function fetchHistoryData() {
+  const currentContainer = document.getElementById('current-order-list');
+  const pastContainer = document.getElementById('past-order-container');
+  
+  // 読み込み中表示
+  currentContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-light"></div></div>';
+  
+  if (!liff.isLoggedIn()) {
+    currentContainer.innerHTML = '<div class="text-center text-danger">ログインが必要です</div>';
+    return;
+  }
+
+  // プロファイル取得してから履歴APIを叩く
+  liff.getProfile().then(profile => {
+    const url = `${GAS_API_URL}?action=getHistory&userId=${profile.userId}`;
+    
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        renderHistory(data);
+      })
+      .catch(err => {
+        currentContainer.innerHTML = `<div class="text-danger text-center">エラー: ${err.message}</div>`;
+      });
+  });
+}
+
+function renderHistory(data) {
+  // 1. 現在の注文 (未会計)
+  const currentContainer = document.getElementById('current-order-list');
+  const totalDisplay = document.getElementById('current-total-price');
+  const checkoutBtn = document.getElementById('btn-checkout');
+  
+  if (data.current.length === 0) {
+    currentContainer.innerHTML = '<div class="text-center text-secondary py-3">現在のご注文はありません</div>';
+    totalDisplay.innerText = "¥0";
+    checkoutBtn.disabled = true;
+    checkoutBtn.innerText = "お会計対象なし";
+  } else {
+    let html = '';
+    let total = 0;
+    data.current.forEach(item => {
+      total += Number(item.price);
+      html += `
+        <div class="history-item-row">
+          <div>${item.name}</div>
+          <div>¥${item.price}</div>
+        </div>
+      `;
+    });
+    currentContainer.innerHTML = html;
+    totalDisplay.innerText = "¥" + total;
+    checkoutBtn.disabled = false;
+    checkoutBtn.innerText = "お会計を確定する";
+  }
+
+  // 2. 過去の履歴 (会計済み)
+  const pastContainer = document.getElementById('past-order-container');
+  if (data.past.length === 0) {
+    pastContainer.innerHTML = '<div class="text-center text-secondary py-3">過去の履歴はありません</div>';
+  } else {
+    let html = '';
+    data.past.forEach((order, index) => {
+      // order = { id, time, total, items: [{name, price}, ...] }
+      const itemsHtml = order.items.map(i => `<div>・${i.name} (¥${i.price})</div>`).join("");
+      
+      html += `
+        <div class="past-order-card">
+          <div class="past-order-header" onclick="toggleAccordion('past-body-${index}')">
+            <div>
+              <span style="color:#03dac6; font-weight:bold;">${order.time}</span>
+              <span class="ms-2 small text-secondary">会計済</span>
+            </div>
+            <div class="fw-bold">¥${order.total} ▼</div>
+          </div>
+          <div id="past-body-${index}" class="past-order-body">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    });
+    pastContainer.innerHTML = html;
+  }
+}
+
+function toggleAccordion(id) {
+  const el = document.getElementById(id);
+  if (el.style.display === "block") el.style.display = "none";
+  else el.style.display = "block";
+}
+
+function confirmCheckout() {
+  if (!confirm("お会計を確定しますか？\n（店員が席へ向かいます）")) return;
+  
+  // ボタンをローディング状態に
+  const btn = document.getElementById('btn-checkout');
+  const originalText = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = "送信中...";
+
+  const payload = { 
+    action: "checkout", 
+    accessToken: liff.getAccessToken() 
+  };
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === "success") {
+      alert("お会計を承りました。\nそのままお席でお待ちください。");
+      historyModal.hide();
+      // 画面リロードして状態を最新にする（現在の注文がゼロになり、過去履歴が増える）
+      setTimeout(() => location.reload(), 500); 
+    } else {
+      alert("エラー: " + data.message);
+      btn.disabled = false;
+      btn.innerText = originalText;
+    }
+  })
+  .catch(err => {
+    alert("通信エラー");
+    btn.disabled = false;
+    btn.innerText = originalText;
+  });
+}
