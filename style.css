@@ -184,3 +184,83 @@ body {
   font-size: 1.2rem;
   letter-spacing: 1px;
 }
+
+
+/* ▼▼▼ フェーズ3追加: 履歴・会計画面用 ▼▼▼ */
+.history-btn-container {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 101;
+}
+
+.btn-history {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 20px;
+  padding: 5px 15px;
+  font-size: 0.85rem;
+}
+
+/* 履歴リストのデザイン */
+.history-section-title {
+  color: #bb86fc;
+  border-bottom: 1px solid #444;
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.current-order-list {
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.history-item-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #333;
+  padding-bottom: 8px;
+}
+.history-item-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.total-display {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: right;
+  color: #fff;
+  margin: 15px 0;
+}
+
+/* 過去の履歴（アコーディオン） */
+.past-order-card {
+  background-color: #222;
+  border: 1px solid #444;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.past-order-header {
+  padding: 12px;
+  background-color: #2c2c2c;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.past-order-body {
+  padding: 15px;
+  display: none; /* JSで開閉 */
+  border-top: 1px solid #444;
+}
+.past-order-body.open {
+  display: block;
+}
