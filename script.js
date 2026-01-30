@@ -15,10 +15,26 @@ window.onload = function() {
     alert("config.js が見つかりません"); return;
   }
 
-  // ★追加: URLパラメータからテーブル番号を取得
+  // ▼▼▼ 修正: テーブル番号の自動取得と記憶ロジック ▼▼▼
   const urlParams = new URLSearchParams(window.location.search);
-  currentTableId = urlParams.get('table');
+  const paramTableId = urlParams.get('table');
 
+  if (paramTableId) {
+    // 1. QRコードから読み込んだ場合 -> その番号を採用＆記憶(上書き)する
+    currentTableId = paramTableId;
+    localStorage.setItem('MO_TABLE_ID', currentTableId);
+  } else {
+    // 2. QR経由じゃない(履歴や再読み込み)場合 -> 記憶している番号を探す
+    const savedTableId = localStorage.getItem('MO_TABLE_ID');
+    if (savedTableId) {
+      currentTableId = savedTableId;
+    } else {
+      // 3. 記憶もない場合(完全新規でURL直打ち等) -> 手動入力 (最終手段)
+      currentTableId = prompt("テーブル番号を入力してください", "1") || "Free";
+      // 手動入力した場合も記憶しておく
+      localStorage.setItem('MO_TABLE_ID', currentTableId);
+    }
+  }
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
