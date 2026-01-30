@@ -1,13 +1,16 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-let confirmModal, messageModal, recommendModal, historyModal, myPageModal;
+// モーダル変数に optionModal を追加
+let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal;
 let tasteChartInstance = null;
 let shouldReload = false;
-// ★追加: テーブル番号管理変数
 let currentTableId = null;
 
-const PLACEHOLDER_IMG = "https://placehold.co/100x100/333/888?text=No+Img";
+// ★追加: オプション選択中の一時データ
+let pendingItem = null; 
+
+const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img";
 
 // 初期化処理
 window.onload = function() {
@@ -15,33 +18,30 @@ window.onload = function() {
     alert("config.js が見つかりません"); return;
   }
 
-  // ▼▼▼ 修正: テーブル番号の自動取得と記憶ロジック ▼▼▼
+  // テーブル番号の自動取得と記憶
   const urlParams = new URLSearchParams(window.location.search);
   const paramTableId = urlParams.get('table');
 
   if (paramTableId) {
-    // 1. QRコードから読み込んだ場合 -> その番号を採用＆記憶(上書き)する
     currentTableId = paramTableId;
     localStorage.setItem('MO_TABLE_ID', currentTableId);
   } else {
-    // 2. QR経由じゃない(履歴や再読み込み)場合 -> 記憶している番号を探す
     const savedTableId = localStorage.getItem('MO_TABLE_ID');
     if (savedTableId) {
       currentTableId = savedTableId;
     } else {
-      // 3. 記憶もない場合(完全新規でURL直打ち等) -> 手動入力 (最終手段)
       currentTableId = prompt("テーブル番号を入力してください", "1") || "Free";
-      // 手動入力した場合も記憶しておく
       localStorage.setItem('MO_TABLE_ID', currentTableId);
     }
   }
-  // ▲▲▲ 修正ここまで ▲▲▲
 
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
   historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
+  // ★追加
+  optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
 
   initializeLiff();
 };
@@ -53,7 +53,6 @@ function initializeLiff() {
         liff.login({ redirectUri: location.href });
       } else {
         liff.getProfile().then(p => {
-          // ヘッダーにテーブル番号と名前を表示
           document.getElementById('user-info').innerText = `Table: ${currentTableId} / Guest: ${p.displayName}`;
         });
         fetchMenu(); 
@@ -106,6 +105,7 @@ function renderMenu() {
     const isSoldOut = item.isSoldOut;
     const btnState = isSoldOut ? 'disabled' : '';
     const btnText = isSoldOut ? 'SOLD OUT' : '追加';
+    // デザイン汎用化: btn-secondary はそのまま、追加ボタンは btn-add クラスへ
     const btnClass = isSoldOut ? 'btn-secondary' : 'btn-add';
     const cardOpacity = isSoldOut ? 'opacity: 0.6;' : '';
     const imgUrl = convertDriveUrl(item.image);
@@ -118,7 +118,7 @@ function renderMenu() {
             <div class="item-flavor">${item.flavor}</div>
             <div class="item-price">¥${item.price}</div>
           </div>
-          <div class="btn-area"><button class="btn ${btnClass}" onclick="addToCart('${item.id}', '${item.name}', ${item.price})" ${btnState}>${btnText}</button></div>
+          <div class="btn-area"><button class="btn ${btnClass}" onclick="addToCart('${item.id}')" ${btnState}>${btnText}</button></div>
         </div>
       </div>`;
     container.innerHTML += card;
@@ -134,9 +134,115 @@ function convertDriveUrl(url) {
   return url;
 }
 
-function addToCart(id, name, price) {
-  cart.push({ id, name, price });
+// ▼▼▼ 修正: カート追加 (オプション対応) ▼▼▼
+function addToCart(id) {
+  // IDからアイテム情報を検索 (String型で比較)
+  const item = allMenuItems.find(m => String(m.id) === String(id));
+  
+  if (!item) return;
+
+  // オプションがある場合
+  if (item.optionsStr && item.optionsStr.trim() !== "") {
+    openOptionModal(item);
+  } else {
+    // オプションがない場合はそのまま追加
+    cart.push({ id: item.id, name: item.name, price: item.price, options: [] });
+    updateCartUI();
+  }
+}
+
+// ▼▼▼ 追加: オプション関連ロジック ▼▼▼
+function openOptionModal(item) {
+  if (!optionModal) optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
+  
+  pendingItem = item;
+  document.getElementById('optionModalTitle').innerText = item.name;
+  
+  // オプション文字列をパース "大盛り:100,ネギ抜き:0" -> [{name, price}, ...]
+  const options = item.optionsStr.split(',').map(s => {
+    const parts = s.split(':');
+    return { name: parts[0], price: Number(parts[1] || 0) };
+  });
+
+  const container = document.getElementById('option-container');
+  container.innerHTML = '';
+
+  // チェックボックスとして描画
+  options.forEach((opt, index) => {
+    const html = `
+      <div class="form-check py-2 border-bottom">
+        <input class="form-check-input option-check" type="checkbox" 
+               id="opt-${index}" value="${index}" onchange="calcOptionTotal()">
+        <label class="form-check-label w-100 d-flex justify-content-between" for="opt-${index}">
+          <span>${opt.name}</span>
+          <span>+¥${opt.price}</span>
+        </label>
+      </div>
+    `;
+    container.innerHTML += html;
+  });
+
+  // 初期計算
+  calcOptionTotal();
+  optionModal.show();
+}
+
+function calcOptionTotal() {
+  if (!pendingItem) return;
+  let total = pendingItem.price;
+  
+  const checkboxes = document.querySelectorAll('.option-check:checked');
+  const optionsList = pendingItem.optionsStr.split(',').map(s => {
+    const parts = s.split(':');
+    return { name: parts[0], price: Number(parts[1] || 0) };
+  });
+
+  checkboxes.forEach(cb => {
+    const idx = parseInt(cb.value);
+    total += optionsList[idx].price;
+  });
+
+  document.getElementById('option-total-price').innerText = "合計: ¥" + total;
+}
+
+function confirmOptionAdd() {
+  if (!pendingItem) return;
+  
+  const checkboxes = document.querySelectorAll('.option-check:checked');
+  const optionsList = pendingItem.optionsStr.split(',').map(s => {
+    const parts = s.split(':');
+    return { name: parts[0], price: Number(parts[1] || 0) };
+  });
+
+  let addedOptions = [];
+  let finalPrice = pendingItem.price;
+  let displayName = pendingItem.name;
+
+  // 選択オプションを収集
+  if (checkboxes.length > 0) {
+    const optNames = [];
+    checkboxes.forEach(cb => {
+      const idx = parseInt(cb.value);
+      const opt = optionsList[idx];
+      addedOptions.push(opt);
+      optNames.push(opt.name);
+      finalPrice += opt.price;
+    });
+    // 商品名にオプションを追記 (例: ラーメン (大盛り, 味玉))
+    displayName += ` (${optNames.join(', ')})`;
+  }
+
+  // カートへ追加
+  cart.push({ 
+    id: pendingItem.id, 
+    name: displayName, // オプション込みの名前
+    price: finalPrice, // オプション込みの価格
+    options: addedOptions 
+  });
+
   updateCartUI();
+  optionModal.hide();
+  pendingItem = null;
 }
 
 function updateCartUI() {
@@ -184,7 +290,6 @@ function executeOrder() {
   confirmModal.hide(); 
   showLoading();
 
-  // ★変更: 自動取得した tableId を送信データに含める
   const payload = { 
     accessToken: liff.getAccessToken(), 
     items: cart,
@@ -243,47 +348,34 @@ function finishOrderFlow() {
   showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
 
-// ▼▼▼ 履歴・会計 ▼▼▼
-
+// 履歴・会計・マイページ系（変更なし）
 function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   historyModal.show();
   fetchHistoryData();
 }
-
 function switchHistoryTab(tabName) {
   document.querySelectorAll('#history-tabs .nav-link').forEach(btn => btn.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('tab-current').style.display = (tabName === 'current') ? 'block' : 'none';
   document.getElementById('tab-past').style.display = (tabName === 'past') ? 'block' : 'none';
 }
-
 function fetchHistoryData() {
   const currentContainer = document.getElementById('current-order-list');
   const pastContainer = document.getElementById('past-order-container');
-  currentContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-light"></div></div>';
-  
-  if (!liff.isLoggedIn()) {
-    currentContainer.innerHTML = '<div class="text-center text-danger">ログインが必要です</div>';
-    return;
-  }
-
+  currentContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-secondary"></div></div>';
+  if (!liff.isLoggedIn()) { currentContainer.innerHTML = '<div class="text-center text-danger">ログインが必要です</div>'; return; }
   liff.getProfile().then(profile => {
     const url = `${GAS_API_URL}?action=getHistory&userId=${profile.userId}`;
-    fetch(url)
-      .then(res => res.json())
-      .then(data => { renderHistory(data); })
-      .catch(err => {
+    fetch(url).then(res => res.json()).then(data => { renderHistory(data); }).catch(err => {
         currentContainer.innerHTML = `<div class="text-danger text-center">エラー: ${err.message}</div>`;
       });
   });
 }
-
 function renderHistory(data) {
   const currentContainer = document.getElementById('current-order-list');
   const totalDisplay = document.getElementById('current-total-price');
   const checkoutBtn = document.getElementById('btn-checkout');
-  
   if (data.current.length === 0) {
     currentContainer.innerHTML = '<div class="text-center text-secondary py-3">現在のご注文はありません</div>';
     totalDisplay.innerText = "¥0";
@@ -293,32 +385,23 @@ function renderHistory(data) {
     let html = '';
     let total = 0;
     let isRequesting = false;
-
     data.current.forEach(item => {
       total += Number(item.price);
       if (item.status === 'PAY_REQ') isRequesting = true;
-
-      html += `
-        <div class="history-item-row">
-          <div>${item.name}</div>
-          <div>¥${item.price}</div>
-        </div>
-      `;
+      html += `<div class="history-item-row"><div>${item.name}</div><div>¥${item.price}</div></div>`;
     });
     currentContainer.innerHTML = html;
     totalDisplay.innerText = "¥" + total;
-
     if (isRequesting) {
       checkoutBtn.disabled = true;
       checkoutBtn.innerText = "店員を呼出中...";
-      checkoutBtn.classList.replace('btn-primary', 'btn-secondary');
+      checkoutBtn.classList.replace('btn-add', 'btn-secondary');
     } else {
       checkoutBtn.disabled = false;
       checkoutBtn.innerText = "お会計を確定する";
-      checkoutBtn.classList.replace('btn-secondary', 'btn-primary');
+      checkoutBtn.classList.replace('btn-secondary', 'btn-add');
     }
   }
-
   const pastContainer = document.getElementById('past-order-container');
   if (data.past.length === 0) {
     pastContainer.innerHTML = '<div class="text-center text-secondary py-3">過去の履歴はありません</div>';
@@ -326,31 +409,21 @@ function renderHistory(data) {
     let html = '';
     data.past.forEach((order, index) => {
       const itemsHtml = order.items.map(i => `<div>・${i.name} (¥${i.price})</div>`).join("");
-      html += `
-        <div class="past-order-card">
-          <div class="past-order-header" onclick="toggleAccordion('past-body-${index}')">
-            <div><span style="color:#03dac6; font-weight:bold;">${order.time}</span><span class="ms-2 small text-secondary">会計済</span></div>
-            <div class="fw-bold">¥${order.total} ▼</div>
-          </div>
-          <div id="past-body-${index}" class="past-order-body">${itemsHtml}</div>
-        </div>`;
+      html += `<div class="past-order-card"><div class="past-order-header" onclick="toggleAccordion('past-body-${index}')"><div><span class="text-primary fw-bold">${order.time}</span><span class="ms-2 small text-secondary">会計済</span></div><div class="fw-bold">¥${order.total} ▼</div></div><div id="past-body-${index}" class="past-order-body">${itemsHtml}</div></div>`;
     });
     pastContainer.innerHTML = html;
   }
 }
-
 function toggleAccordion(id) {
   const el = document.getElementById(id);
   if (el.style.display === "block") el.style.display = "none";
   else el.style.display = "block";
 }
-
 function confirmCheckout() {
   if (!confirm("お会計を確定しますか？\n店員が精算に伺います。")) return;
   const btn = document.getElementById('btn-checkout');
   btn.disabled = true; btn.innerText = "送信中...";
   const payload = { action: "checkout", accessToken: liff.getAccessToken() };
-  
   fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
   .then(data => {
@@ -361,15 +434,11 @@ function confirmCheckout() {
   })
   .catch(err => { alert("通信エラー"); btn.disabled = false; btn.innerText = "お会計を確定する"; });
 }
-
-// ▼▼▼ フェーズ4: マイページ & チャート & Gemini連携 ▼▼▼
-
 function openMyPageModal() {
   if (!myPageModal) myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
   myPageModal.show();
   loadAndRenderChart();
 }
-
 function loadAndRenderChart() {
   if (!liff.isLoggedIn()) { alert("ログインが必要です"); return; }
   liff.getProfile().then(profile => {
@@ -383,13 +452,16 @@ function loadAndRenderChart() {
       });
   });
 }
-
 function calculateAndDraw(itemNames) {
   let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
   let count = 0;
-
   itemNames.forEach(name => {
-    const masterItem = allMenuItems.find(m => m.name === name);
+    // オプション込みの名前から、元のメニュー名を推測するのは難しい場合があるため
+    // 簡易的に前方一致などで検索するか、本来はIDで紐付けるべきだが、
+    // ここでは簡易分析のため「メニュー名が含まれるもの」をカウントする形でも良い
+    // もしくは、オプション文字を除去してマッチングする
+    const baseName = name.split(' (')[0]; 
+    const masterItem = allMenuItems.find(m => m.name === baseName);
     if (masterItem && masterItem.params) {
       stats.salty += masterItem.params.salty;
       stats.sweet += masterItem.params.sweet;
@@ -399,7 +471,6 @@ function calculateAndDraw(itemNames) {
       count++;
     }
   });
-
   const avgStats = count === 0 ? { salty:0, sweet:0, sour:0, bitter:0, rich:0 } : {
     salty: Number((stats.salty / count).toFixed(1)),
     sweet: Number((stats.sweet / count).toFixed(1)),
@@ -407,71 +478,35 @@ function calculateAndDraw(itemNames) {
     bitter: Number((stats.bitter / count).toFixed(1)),
     rich:  Number((stats.rich / count).toFixed(1))
   };
-
   const dataValues = [avgStats.salty, avgStats.sweet, avgStats.sour, avgStats.bitter, avgStats.rich];
   drawChart(dataValues);
-  
   fetchAiComment(avgStats, itemNames);
 }
-
 function drawChart(dataValues) {
   const ctx = document.getElementById('tasteChart').getContext('2d');
   if (tasteChartInstance) tasteChartInstance.destroy();
-
+  // ライトモード用の色設定
+  const colorPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff9800';
+  
   tasteChartInstance = new Chart(ctx, {
     type: 'radar',
     data: {
       labels: ['塩味', '甘味', '酸味', '苦味', 'コク'],
-      datasets: [{
-        label: '好み傾向',
-        data: dataValues,
-        backgroundColor: 'rgba(187, 134, 252, 0.2)',
-        borderColor: '#bb86fc',
-        pointBackgroundColor: '#03dac6',
-        borderWidth: 2
-      }]
+      datasets: [{ label: '好み傾向', data: dataValues, backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: colorPrimary, pointBackgroundColor: colorPrimary, borderWidth: 2 }]
     },
     options: {
-      scales: {
-        r: {
-          angleLines: { color: '#444' }, grid: { color: '#444' },
-          pointLabels: { color: '#fff', font: {size: 12} },
-          ticks: { display: false, max: 5, min: 0 }
-        }
-      },
+      scales: { r: { angleLines: { color: '#ddd' }, grid: { color: '#ddd' }, pointLabels: { color: '#666', font: {size: 12} }, ticks: { display: false, max: 5, min: 0 } } },
       plugins: { legend: { display: false } }
     }
   });
 }
-
 function fetchAiComment(stats, historyItems) {
-  const commentBox = document.querySelector('#myPageModal .text-light');
-  commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-warning" role="status"></span> 分析中... AIがコメントを考えています';
-
-  if (historyItems.length === 0) {
-    commentBox.innerText = "まだデータがありません。注文するとAIが分析を開始します！";
-    return;
-  }
-
-  const payload = {
-    action: "getAiComment",
-    stats: stats,
-    history: historyItems
-  };
-
-  fetch(GAS_API_URL, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  })
+  const commentBox = document.querySelector('#myPageModal .text-muted');
+  if(commentBox) commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary" role="status"></span> 分析中... AIがコメントを考えています';
+  if (historyItems.length === 0) { if(commentBox) commentBox.innerText = "まだデータがありません。注文するとAIが分析を開始します！"; return; }
+  const payload = { action: "getAiComment", stats: stats, history: historyItems };
+  fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
-  .then(data => {
-    if (data.status === "success") {
-      commentBox.innerText = data.message;
-    } else {
-      commentBox.innerText = "コメントの取得に失敗しました。";
-    }
-  })
-  .catch(err => {
-    commentBox.innerText = "通信エラーが発生しました。";
-  });
+  .then(data => { if (data.status === "success" && commentBox) { commentBox.innerText = data.message; } else if(commentBox) { commentBox.innerText = "コメントの取得に失敗しました。"; } })
+  .catch(err => { if(commentBox) commentBox.innerText = "通信エラーが発生しました。"; });
 }
