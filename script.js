@@ -209,6 +209,8 @@ function finishOrderFlow() {
   showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
 
+// ▼▼▼ フェーズ3: 履歴・会計 ▼▼▼
+
 function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   historyModal.show();
@@ -256,14 +258,33 @@ function renderHistory(data) {
   } else {
     let html = '';
     let total = 0;
+    // ★追加: 1つでも PAY_REQ があれば「呼び出し中」とみなす
+    let isRequesting = false;
+
     data.current.forEach(item => {
       total += Number(item.price);
-      html += `<div class="history-item-row"><div>${item.name}</div><div>¥${item.price}</div></div>`;
+      if (item.status === 'PAY_REQ') isRequesting = true;
+
+      html += `
+        <div class="history-item-row">
+          <div>${item.name}</div>
+          <div>¥${item.price}</div>
+        </div>
+      `;
     });
     currentContainer.innerHTML = html;
     totalDisplay.innerText = "¥" + total;
-    checkoutBtn.disabled = false;
-    checkoutBtn.innerText = "お会計を確定する";
+
+    // ★追加: 呼び出し中ならボタンをロック
+    if (isRequesting) {
+      checkoutBtn.disabled = true;
+      checkoutBtn.innerText = "店員を呼出中...";
+      checkoutBtn.classList.replace('btn-primary', 'btn-secondary');
+    } else {
+      checkoutBtn.disabled = false;
+      checkoutBtn.innerText = "お会計を確定する";
+      checkoutBtn.classList.replace('btn-secondary', 'btn-primary');
+    }
   }
 
   const pastContainer = document.getElementById('past-order-container');
@@ -292,8 +313,9 @@ function toggleAccordion(id) {
   else el.style.display = "block";
 }
 
+// ★変更: 会計確定処理
 function confirmCheckout() {
-  if (!confirm("お会計を確定しますか？")) return;
+  if (!confirm("お会計を確定しますか？\n店員が精算に伺います。")) return;
   const btn = document.getElementById('btn-checkout');
   btn.disabled = true; btn.innerText = "送信中...";
   const payload = { action: "checkout", accessToken: liff.getAccessToken() };
@@ -302,11 +324,14 @@ function confirmCheckout() {
   .then(res => res.json())
   .then(data => {
     if (data.status === "success") {
-      alert("お会計を承りました。"); historyModal.hide(); setTimeout(() => location.reload(), 500);
+      alert("店員をお呼びしました。\nそのままお席でお待ちください。");
+      historyModal.hide(); setTimeout(() => location.reload(), 500);
     } else { alert("エラー: " + data.message); btn.disabled = false; btn.innerText = "お会計を確定する"; }
   })
   .catch(err => { alert("通信エラー"); btn.disabled = false; btn.innerText = "お会計を確定する"; });
 }
+
+// ▼▼▼ フェーズ4: マイページ & チャート & Gemini連携 ▼▼▼
 
 function openMyPageModal() {
   if (!myPageModal) myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
