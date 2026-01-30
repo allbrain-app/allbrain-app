@@ -1,8 +1,9 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-let confirmModal, messageModal, recommendModal, historyModal, myPageModal;
+let confirmModal, messageModal, recommendModal, historyModal, myPageModal, ownerModal;
 let tasteChartInstance = null;
+let salesChartInstance = null; // ★追加: 売上チャート用
 let shouldReload = false;
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/333/888?text=No+Img";
 
@@ -14,11 +15,10 @@ window.onload = function() {
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
-  
-  // フェーズ3: 履歴用
   historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
-  // フェーズ4: マイページ用
   myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
+  // ★追加
+  ownerModal = new bootstrap.Modal(document.getElementById('ownerModal'));
 
   initializeLiff();
 };
@@ -362,7 +362,6 @@ function calculateAndDraw(itemNames) {
   const dataValues = [avgStats.salty, avgStats.sweet, avgStats.sour, avgStats.bitter, avgStats.rich];
   drawChart(dataValues);
   
-  // ★追加: グラフ描画後にAIコメントを取得
   fetchAiComment(avgStats, itemNames);
 }
 
@@ -425,5 +424,88 @@ function fetchAiComment(stats, historyItems) {
   })
   .catch(err => {
     commentBox.innerText = "通信エラーが発生しました。";
+  });
+}
+
+// ▼▼▼ ★追加: オーナー管理機能 (分析Step1) ▼▼▼
+
+function openOwnerModal() {
+  // 簡易セキュリティ: パスワード確認
+  const pass = prompt("管理者パスワードを入力してください(デモ:1234)");
+  if (pass !== "1234") {
+    alert("パスワードが違います");
+    return;
+  }
+
+  if (!ownerModal) ownerModal = new bootstrap.Modal(document.getElementById('ownerModal'));
+  ownerModal.show();
+  fetchOwnerData();
+}
+
+function fetchOwnerData() {
+  // 読み込み中表示
+  document.getElementById('owner-total-sales').innerText = "---";
+  
+  const payload = { action: "getOwnerData" };
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => {
+    renderOwnerDashboard(data);
+  })
+  .catch(err => {
+    alert("データ取得エラー: " + err.message);
+  });
+}
+
+function renderOwnerDashboard(data) {
+  // 数値の反映
+  document.getElementById('owner-total-sales').innerText = "¥" + data.totalSales.toLocaleString();
+  document.getElementById('owner-order-count').innerText = data.orderCount;
+
+  // グラフ描画 (棒グラフ)
+  const ctx = document.getElementById('salesChart').getContext('2d');
+  
+  if (salesChartInstance) {
+    salesChartInstance.destroy();
+  }
+
+  const labels = data.ranking.map(item => item.name);
+  const counts = data.ranking.map(item => item.count);
+
+  salesChartInstance = new Chart(ctx, {
+    type: 'bar', // 棒グラフ
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '注文数',
+        data: counts,
+        backgroundColor: '#03dac6',
+        borderColor: '#03dac6',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      indexAxis: 'y', // 横向き棒グラフ
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { 
+          beginAtZero: true,
+          grid: { color: '#444' },
+          ticks: { color: '#fff', stepSize: 1 } 
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#fff' }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
   });
 }
