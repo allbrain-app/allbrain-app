@@ -1,14 +1,13 @@
 :root {
-  /* ▼▼▼ テーマカラー設定 (ここを変えればお店の色が変わる) ▼▼▼ */
-  --bg-body: #f8f9fa;       /* 背景色：白系 */
-  --bg-card: #ffffff;       /* カード背景：白 */
-  --text-main: #212529;     /* 文字色：濃いグレー */
-  --text-sub: #6c757d;      /* サブ文字色：グレー */
-  --color-primary: #ff9800; /* メインカラー：オレンジ (飲食店らしい色) */
-  --color-accent: #03dac6;  /* アクセント：ミントグリーン */
-  --border-color: #dee2e6;  /* 枠線 */
+  /* テーマカラー設定 */
+  --bg-body: #f8f9fa;       
+  --bg-card: #ffffff;       
+  --text-main: #212529;     
+  --text-sub: #6c757d;      
+  --color-primary: #ff9800; 
+  --color-accent: #03dac6;  
+  --border-color: #dee2e6;  
   
-  /* ダークモード時の名残（チャート用など） */
   --chart-line: #ff9800;
 }
 
@@ -49,7 +48,7 @@ h4 { color: var(--text-main) !important; font-weight: bold; }
   border: 1px solid var(--border-color); 
   margin-bottom: 15px; 
   border-radius: 12px; 
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 影をつけて立体感 */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 .card-body-custom { display: flex; align-items: center; padding: 12px; gap: 12px; }
 .img-area { width: 80px; height: 80px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background-color: #eee; }
@@ -86,10 +85,16 @@ h4 { color: var(--text-main) !important; font-weight: bold; }
 .modal-content { background-color: #fff; color: var(--text-main); border-radius: 15px; }
 .modal-header { border-bottom: 1px solid var(--border-color); }
 .modal-footer { border-top: 1px solid var(--border-color); }
-.btn-close { filter: none; } /* 白モードなので反転不要 */
+.btn-close { filter: none; }
 
-/* 右上ボタン */
-.history-btn-container { position: absolute; top: 15px; right: 15px; z-index: 101; }
+/* ▼▼▼ 修正: 右上ボタンを固定表示(fixed)に変更 ▼▼▼ */
+.history-btn-container { 
+  position: fixed; /* absolute から fixed に変更 */
+  top: 15px; 
+  right: 15px; 
+  z-index: 900; /* カートバー(1000)より下、コンテンツより上 */
+}
+
 .btn-mypage, .btn-history {
   background-color: #fff; color: var(--text-main);
   border: 1px solid var(--border-color);
@@ -97,14 +102,14 @@ h4 { color: var(--text-main) !important; font-weight: bold; }
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* オプション選択（ラジオ/チェック） */
+/* オプション選択 */
 .option-group { margin-bottom: 15px; text-align: left; }
 .option-label { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; display: block;}
 .form-check-label { color: var(--text-main); }
 
 /* ローディング */
 .loading-overlay {
-  background-color: rgba(255, 255, 255, 0.9); /* 白の半透明 */
+  background-color: rgba(255, 255, 255, 0.9);
 }
 .loading-text { color: var(--color-primary); }
 .loading-spinner { border-color: #eee; border-top-color: var(--color-primary); }
