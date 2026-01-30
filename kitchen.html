@@ -27,6 +27,19 @@
     /* 更新ボタンのアニメーション */
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* メニュー管理用スイッチ */
+    .form-check-input:checked {
+      background-color: #dc3545; /* 売り切れ=赤 */
+      border-color: #dc3545;
+    }
+    .menu-row {
+      border-bottom: 1px solid #444;
+      padding: 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
@@ -35,7 +48,7 @@
   <div class="header-area">
     <div class="d-flex align-items-center gap-3">
       <h2 class="m-0">🍽 Kitchen Monitor</h2>
-      <button class="btn btn-dark border-secondary" onclick="openOwnerModal()">👑 売上管理</button>
+      <button class="btn btn-dark border-secondary" onclick="openOwnerModal()">👑 店舗管理</button>
     </div>
     <button class="btn btn-outline-light" onclick="loadOrders()" id="btn-refresh">🔄 更新</button>
   </div>
@@ -46,33 +59,55 @@
 </div>
 
 <div class="modal fade" id="ownerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg"> <div class="modal-content">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
       <div class="modal-header bg-dark text-white border-secondary">
-        <h5 class="modal-title">👑 オーナー管理画面</h5>
+        <h5 class="modal-title">👑 店舗管理画面</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body bg-dark text-white">
         
-        <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">本日の売上状況</h6>
-        
-        <div class="row text-center mb-4">
-          <div class="col-6">
-            <div class="small text-secondary">総売上</div>
-            <div class="fs-3 fw-bold text-warning" id="owner-total-sales">¥0</div>
-          </div>
-          <div class="col-6">
-            <div class="small text-secondary">注文数</div>
-            <div class="fs-3 fw-bold" id="owner-order-count">0<span class="fs-6">件</span></div>
-          </div>
-        </div>
+        <ul class="nav nav-tabs border-secondary mb-3" id="ownerTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active text-light" id="analysis-tab" data-bs-toggle="tab" data-bs-target="#analysis-pane" type="button" role="tab">📊 売上分析</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link text-light" id="menu-tab" data-bs-toggle="tab" data-bs-target="#menu-pane" type="button" role="tab" onclick="fetchMenuForOwner()">📝 メニュー管理</button>
+          </li>
+        </ul>
 
-        <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">商品別 売れ行き</h6>
-        <div style="height: 350px; position: relative;">
-           <canvas id="salesChart"></canvas>
-        </div>
-        
-        <div class="mt-4 text-center">
-           <button class="btn btn-outline-secondary w-100" onclick="fetchOwnerData()">データを更新</button>
+        <div class="tab-content" id="ownerTabContent">
+          
+          <div class="tab-pane fade show active" id="analysis-pane" role="tabpanel">
+            <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">本日の売上状況</h6>
+            <div class="row text-center mb-4">
+              <div class="col-6">
+                <div class="small text-secondary">総売上</div>
+                <div class="fs-3 fw-bold text-warning" id="owner-total-sales">¥0</div>
+              </div>
+              <div class="col-6">
+                <div class="small text-secondary">注文数</div>
+                <div class="fs-3 fw-bold" id="owner-order-count">0<span class="fs-6">件</span></div>
+              </div>
+            </div>
+            <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">商品別 売れ行き</h6>
+            <div style="height: 300px; position: relative;">
+               <canvas id="salesChart"></canvas>
+            </div>
+            <div class="mt-4 text-center">
+               <button class="btn btn-outline-secondary w-100" onclick="fetchOwnerData()">データを更新</button>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="menu-pane" role="tabpanel">
+            <div class="alert alert-dark border-secondary small text-secondary">
+              スイッチをON(赤)にすると「売り切れ」になります。<br>変更は即座に反映されます。
+            </div>
+            <div id="owner-menu-list">
+              <div class="text-center py-5">読み込み中...</div>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -86,6 +121,8 @@
 <script>
   let ownerModal;
   let salesChartInstance = null;
+  // 管理用メニューデータ保持
+  let ownerMenuItems = [];
 
   window.onload = function() {
     if (typeof GAS_API_URL === 'undefined') { alert("config.js error"); return; }
@@ -98,6 +135,7 @@
     setInterval(loadOrders, 30000);
   };
 
+  // --- 既存: 注文リスト取得 ---
   function loadOrders() {
     const btn = document.getElementById('btn-refresh');
     btn.innerHTML = "🔄 ...";
@@ -119,16 +157,12 @@
   function displayOrders(orders) {
     const container = document.getElementById('order-list');
     container.innerHTML = "";
-
     if (!orders || orders.length === 0) {
       container.innerHTML = '<div class="text-center text-secondary mt-5">現在、未提供の注文はありません ✅</div>';
       return;
     }
-
     orders.forEach(order => {
-      // アイテムリストをHTML化
       const itemsHtml = order.items.map(item => `<div>・${item}</div>`).join("");
-      
       const card = `
         <div class="order-card" id="card-${order.id}">
           <div class="d-flex justify-content-between align-items-center">
@@ -138,27 +172,133 @@
             </div>
           </div>
           <hr style="margin:8px 0; border-color:#555;">
-          <div class="order-items">
-            ${itemsHtml}
-          </div>
+          <div class="order-items">${itemsHtml}</div>
           <div class="mt-3">
             <button class="btn btn-success btn-done" onclick="completeOrder('${order.id}')">提供完了</button>
           </div>
-        </div>
-      `;
+        </div>`;
       container.innerHTML += card;
     });
   }
 
   function completeOrder(orderId) {
     if(!confirm("提供完了にしますか？")) return;
-
     const card = document.getElementById(`card-${orderId}`);
     if(card) card.style.opacity = "0.3";
+    const payload = { action: "completeOrder", orderId: orderId };
+
+    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
+    .then(res => res.json())
+    .then(data => {
+      if(data.status === "success") {
+        if(card) card.remove();
+        if(document.querySelectorAll('.order-card').length === 0) loadOrders(); 
+      } else { alert("エラー: " + data.message); loadOrders(); }
+    });
+  }
+
+  // --- オーナー管理機能 (分析) ---
+  function openOwnerModal() {
+    const pass = prompt("管理者パスワードを入力してください(デモ:1234)");
+    if (pass !== "1234") { alert("パスワードが違います"); return; }
+    ownerModal.show();
+    fetchOwnerData(); // まずは分析データをロード
+  }
+
+  function fetchOwnerData() {
+    document.getElementById('owner-total-sales').innerText = "---";
+    const payload = { action: "getOwnerData" };
+    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
+    .then(res => res.json())
+    .then(data => { renderOwnerDashboard(data); });
+  }
+
+  function renderOwnerDashboard(data) {
+    document.getElementById('owner-total-sales').innerText = "¥" + data.totalSales.toLocaleString();
+    document.getElementById('owner-order-count').innerText = data.orderCount;
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    if (salesChartInstance) salesChartInstance.destroy();
+    const labels = data.ranking.map(item => item.name);
+    const counts = data.ranking.map(item => item.count);
+    salesChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{ label: '注文数', data: counts, backgroundColor: '#03dac6', borderColor: '#03dac6', borderWidth: 1 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        scales: { x: { beginAtZero: true, grid: { color: '#444' }, ticks: { color: '#fff', stepSize: 1 } }, y: { grid: { display: false }, ticks: { color: '#fff' } } },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  // --- ★追加: オーナー管理機能 (メニュー管理 Step2) ---
+  function fetchMenuForOwner() {
+    const container = document.getElementById('owner-menu-list');
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-light"></div></div>';
+
+    // 客用のgetMenu APIをそのまま再利用
+    fetch(GAS_API_URL + "?action=getMenu")
+      .then(res => res.json())
+      .then(data => {
+        ownerMenuItems = data; // データを保持
+        renderOwnerMenu(data);
+      })
+      .catch(err => {
+        container.innerHTML = '<div class="text-danger text-center">読み込みエラー</div>';
+      });
+  }
+
+  function renderOwnerMenu(items) {
+    const container = document.getElementById('owner-menu-list');
+    container.innerHTML = "";
+    
+    if (items.length === 0) {
+      container.innerHTML = '<div class="text-center text-muted">メニューがありません</div>';
+      return;
+    }
+
+    let html = "";
+    items.forEach(item => {
+      // isSoldOutがtrueならchecked
+      const checked = item.isSoldOut ? "checked" : "";
+      const statusText = item.isSoldOut ? "売切" : "販売中";
+      const statusColor = item.isSoldOut ? "text-danger fw-bold" : "text-success";
+
+      html += `
+        <div class="menu-row">
+          <div>
+            <div class="fw-bold">${item.name}</div>
+            <div class="small text-secondary">${item.category} / ¥${item.price}</div>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <span class="small ${statusColor}" id="status-text-${item.id}">${statusText}</span>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="switch-${item.id}" 
+                ${checked} onchange="toggleStock('${item.id}')">
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function toggleStock(itemId) {
+    const checkbox = document.getElementById(`switch-${itemId}`);
+    const isSoldOut = checkbox.checked;
+    
+    // UIを即時更新 (楽観的更新)
+    const statusTextEl = document.getElementById(`status-text-${itemId}`);
+    statusTextEl.innerText = isSoldOut ? "更新中..." : "更新中...";
+    statusTextEl.className = "small text-warning";
 
     const payload = {
-      action: "completeOrder",
-      orderId: orderId
+      action: "updateStock",
+      itemId: itemId,
+      isSoldOut: isSoldOut
     };
 
     fetch(GAS_API_URL, {
@@ -168,98 +308,21 @@
     .then(res => res.json())
     .then(data => {
       if(data.status === "success") {
-        if(card) card.remove();
-        if(document.querySelectorAll('.order-card').length === 0) {
-          loadOrders(); 
-        }
+        // 完了表示
+        statusTextEl.innerText = isSoldOut ? "売切" : "販売中";
+        statusTextEl.className = isSoldOut ? "small text-danger fw-bold" : "small text-success";
       } else {
-        alert("エラー: " + data.message);
-        loadOrders();
+        alert("更新失敗");
+        // 元に戻す
+        checkbox.checked = !isSoldOut;
       }
     })
     .catch(err => {
       alert("通信エラー");
-      loadOrders();
+      checkbox.checked = !isSoldOut;
     });
   }
 
-  // ▼▼▼ ★追加: オーナー管理機能 (Kitchen版) ▼▼▼
-
-  function openOwnerModal() {
-    // 簡易セキュリティ: パスワード確認
-    const pass = prompt("管理者パスワードを入力してください(デモ:1234)");
-    if (pass !== "1234") {
-      alert("パスワードが違います");
-      return;
-    }
-    ownerModal.show();
-    fetchOwnerData();
-  }
-
-  function fetchOwnerData() {
-    document.getElementById('owner-total-sales').innerText = "---";
-    
-    const payload = { action: "getOwnerData" };
-
-    fetch(GAS_API_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(data => {
-      renderOwnerDashboard(data);
-    })
-    .catch(err => {
-      alert("データ取得エラー: " + err.message);
-    });
-  }
-
-  function renderOwnerDashboard(data) {
-    document.getElementById('owner-total-sales').innerText = "¥" + data.totalSales.toLocaleString();
-    document.getElementById('owner-order-count').innerText = data.orderCount;
-
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    
-    if (salesChartInstance) {
-      salesChartInstance.destroy();
-    }
-
-    const labels = data.ranking.map(item => item.name);
-    const counts = data.ranking.map(item => item.count);
-
-    salesChartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: '注文数',
-          data: counts,
-          backgroundColor: '#03dac6',
-          borderColor: '#03dac6',
-          borderWidth: 1
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { 
-            beginAtZero: true,
-            grid: { color: '#444' },
-            ticks: { color: '#fff', stepSize: 1 } 
-          },
-          y: {
-            grid: { display: false },
-            ticks: { color: '#fff' }
-          }
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
-  }
 </script>
 
 </body>
