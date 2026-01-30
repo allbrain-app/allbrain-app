@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kitchen Monitor</title>
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     body { background-color: #222; color: #fff; font-family: sans-serif; padding: 20px; }
     .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
@@ -29,7 +33,10 @@
 
 <div class="container">
   <div class="header-area">
-    <h2>🍽 Kitchen Monitor</h2>
+    <div class="d-flex align-items-center gap-3">
+      <h2 class="m-0">🍽 Kitchen Monitor</h2>
+      <button class="btn btn-dark border-secondary" onclick="openOwnerModal()">👑 売上管理</button>
+    </div>
     <button class="btn btn-outline-light" onclick="loadOrders()" id="btn-refresh">🔄 更新</button>
   </div>
 
@@ -38,11 +45,54 @@
   </div>
 </div>
 
+<div class="modal fade" id="ownerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg"> <div class="modal-content">
+      <div class="modal-header bg-dark text-white border-secondary">
+        <h5 class="modal-title">👑 オーナー管理画面</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body bg-dark text-white">
+        
+        <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">本日の売上状況</h6>
+        
+        <div class="row text-center mb-4">
+          <div class="col-6">
+            <div class="small text-secondary">総売上</div>
+            <div class="fs-3 fw-bold text-warning" id="owner-total-sales">¥0</div>
+          </div>
+          <div class="col-6">
+            <div class="small text-secondary">注文数</div>
+            <div class="fs-3 fw-bold" id="owner-order-count">0<span class="fs-6">件</span></div>
+          </div>
+        </div>
+
+        <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">商品別 売れ行き</h6>
+        <div style="height: 350px; position: relative;">
+           <canvas id="salesChart"></canvas>
+        </div>
+        
+        <div class="mt-4 text-center">
+           <button class="btn btn-outline-secondary w-100" onclick="fetchOwnerData()">データを更新</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="config.js"></script>
 
 <script>
+  let ownerModal;
+  let salesChartInstance = null;
+
   window.onload = function() {
     if (typeof GAS_API_URL === 'undefined') { alert("config.js error"); return; }
+    
+    // モーダルの初期化
+    ownerModal = new bootstrap.Modal(document.getElementById('ownerModal'));
+    
     loadOrders();
     // 30秒ごとに自動更新
     setInterval(loadOrders, 30000);
@@ -103,7 +153,6 @@
   function completeOrder(orderId) {
     if(!confirm("提供完了にしますか？")) return;
 
-    // 画面から先に消す（サクサク感のため）
     const card = document.getElementById(`card-${orderId}`);
     if(card) card.style.opacity = "0.3";
 
@@ -120,18 +169,95 @@
     .then(data => {
       if(data.status === "success") {
         if(card) card.remove();
-        // もし全部消えたらメッセージを出す
         if(document.querySelectorAll('.order-card').length === 0) {
           loadOrders(); 
         }
       } else {
         alert("エラー: " + data.message);
-        loadOrders(); // 戻す
+        loadOrders();
       }
     })
     .catch(err => {
       alert("通信エラー");
       loadOrders();
+    });
+  }
+
+  // ▼▼▼ ★追加: オーナー管理機能 (Kitchen版) ▼▼▼
+
+  function openOwnerModal() {
+    // 簡易セキュリティ: パスワード確認
+    const pass = prompt("管理者パスワードを入力してください(デモ:1234)");
+    if (pass !== "1234") {
+      alert("パスワードが違います");
+      return;
+    }
+    ownerModal.show();
+    fetchOwnerData();
+  }
+
+  function fetchOwnerData() {
+    document.getElementById('owner-total-sales').innerText = "---";
+    
+    const payload = { action: "getOwnerData" };
+
+    fetch(GAS_API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+      renderOwnerDashboard(data);
+    })
+    .catch(err => {
+      alert("データ取得エラー: " + err.message);
+    });
+  }
+
+  function renderOwnerDashboard(data) {
+    document.getElementById('owner-total-sales').innerText = "¥" + data.totalSales.toLocaleString();
+    document.getElementById('owner-order-count').innerText = data.orderCount;
+
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    
+    if (salesChartInstance) {
+      salesChartInstance.destroy();
+    }
+
+    const labels = data.ranking.map(item => item.name);
+    const counts = data.ranking.map(item => item.count);
+
+    salesChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '注文数',
+          data: counts,
+          backgroundColor: '#03dac6',
+          borderColor: '#03dac6',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { 
+            beginAtZero: true,
+            grid: { color: '#444' },
+            ticks: { color: '#fff', stepSize: 1 } 
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#fff' }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
     });
   }
 </script>
