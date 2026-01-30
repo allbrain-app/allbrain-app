@@ -87,14 +87,13 @@ h4 { color: var(--text-main) !important; font-weight: bold; }
 .modal-footer { border-top: 1px solid var(--border-color); }
 .btn-close { filter: none; }
 
-/* ▼▼▼ 修正: 右上ボタンを固定表示(fixed)に変更 ▼▼▼ */
+/* 右上ボタン (固定表示) */
 .history-btn-container { 
-  position: fixed; /* absolute から fixed に変更 */
+  position: fixed; 
   top: 15px; 
   right: 15px; 
-  z-index: 900; /* カートバー(1000)より下、コンテンツより上 */
+  z-index: 900; 
 }
-
 .btn-mypage, .btn-history {
   background-color: #fff; color: var(--text-main);
   border: 1px solid var(--border-color);
@@ -107,9 +106,35 @@ h4 { color: var(--text-main) !important; font-weight: bold; }
 .option-label { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; display: block;}
 .form-check-label { color: var(--text-main); }
 
-/* ローディング */
+/* ▼▼▼ ローディング (ここを修正) ▼▼▼ */
 .loading-overlay {
-  background-color: rgba(255, 255, 255, 0.9);
+  position: fixed;      /* 画面に固定 */
+  top: 0; 
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.9); /* 白の半透明 */
+  z-index: 2000;        /* モーダル(1055付近)より手前に表示 */
+  display: flex;        /* 中央揃え用 */
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
 }
-.loading-text { color: var(--color-primary); }
-.loading-spinner { border-color: #eee; border-top-color: var(--color-primary); }
+
+/* 非表示にするためのクラス */
+.overlay-hidden {
+  display: none !important;
+}
+
+.loading-spinner { 
+  width: 3rem; 
+  height: 3rem;
+  border: 5px solid #eee; 
+  border-top-color: var(--color-primary); 
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { 
+  100% { transform: rotate(360deg); } 
+}
