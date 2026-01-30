@@ -15,8 +15,6 @@
 <body>
 
   <div class="history-btn-container d-flex gap-2">
-    <button class="btn btn-dark btn-sm border-secondary" onclick="openOwnerModal()">👑 管理</button>
-    
     <button class="btn btn-mypage" onclick="openMyPageModal()">👤 マイページ</button>
     <button class="btn btn-history" onclick="openHistoryModal()">📜 履歴</button>
   </div>
@@ -24,9 +22,7 @@
   <div class="container mt-4">
     <h4 class="mb-4 text-center text-white" style="letter-spacing: 2px;">DRINK MENU</h4>
     <div id="user-info" class="text-center mb-4 text-secondary small"></div>
-    
     <ul class="nav nav-pills" id="category-tabs"></ul>
-
     <div id="menu-list">
       <div class="text-center mt-5 text-secondary">
         <div class="spinner-border text-light" role="status"></div>
@@ -142,52 +138,13 @@
         </div>
         <div class="modal-body text-center">
           <h6 class="text-secondary mb-3">あなたの嗜好分析</h6>
-          
           <div style="max-width: 300px; margin: 0 auto; position: relative;">
             <canvas id="tasteChart"></canvas>
           </div>
-          
           <div class="mt-4 p-3 text-start" style="background:#2c2c2c; border-radius:8px; border-left:4px solid #bb86fc;">
             <div class="small text-warning fw-bold mb-1">🤖 AIソムリエ</div>
             <div class="small text-light">分析中...</div>
           </div>
-
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="ownerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header bg-dark text-white border-secondary">
-          <h5 class="modal-title">👑 オーナー管理画面</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body bg-dark text-white">
-          
-          <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">本日の売上状況</h6>
-          
-          <div class="row text-center mb-4">
-            <div class="col-6">
-              <div class="small text-secondary">総売上</div>
-              <div class="fs-3 fw-bold text-warning" id="owner-total-sales">¥0</div>
-            </div>
-            <div class="col-6">
-              <div class="small text-secondary">注文数</div>
-              <div class="fs-3 fw-bold" id="owner-order-count">0<span class="fs-6">件</span></div>
-            </div>
-          </div>
-
-          <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">商品別 売れ行き</h6>
-          <div style="height: 300px; position: relative;">
-             <canvas id="salesChart"></canvas>
-          </div>
-          
-          <div class="mt-4 text-center">
-             <button class="btn btn-outline-secondary w-100" onclick="location.reload()">データを更新</button>
-          </div>
-
         </div>
       </div>
     </div>
