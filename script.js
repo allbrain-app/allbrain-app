@@ -138,7 +138,7 @@ function convertDriveUrl(url) {
 function addToCart(id) {
   // IDからアイテム情報を検索 (String型で比較)
   const item = allMenuItems.find(m => String(m.id) === String(id));
-  
+   
   if (!item) return;
 
   // オプションがある場合
@@ -154,10 +154,10 @@ function addToCart(id) {
 // ▼▼▼ 追加: オプション関連ロジック ▼▼▼
 function openOptionModal(item) {
   if (!optionModal) optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
-  
+   
   pendingItem = item;
   document.getElementById('optionModalTitle').innerText = item.name;
-  
+   
   // オプション文字列をパース "大盛り:100,ネギ抜き:0" -> [{name, price}, ...]
   const options = item.optionsStr.split(',').map(s => {
     const parts = s.split(':');
@@ -190,7 +190,7 @@ function openOptionModal(item) {
 function calcOptionTotal() {
   if (!pendingItem) return;
   let total = pendingItem.price;
-  
+   
   const checkboxes = document.querySelectorAll('.option-check:checked');
   const optionsList = pendingItem.optionsStr.split(',').map(s => {
     const parts = s.split(':');
@@ -207,7 +207,7 @@ function calcOptionTotal() {
 
 function confirmOptionAdd() {
   if (!pendingItem) return;
-  
+   
   const checkboxes = document.querySelectorAll('.option-check:checked');
   const optionsList = pendingItem.optionsStr.split(',').map(s => {
     const parts = s.split(':');
@@ -255,7 +255,7 @@ function updateCartUI() {
 function showConfirmModal() {
   const container = document.getElementById('cart-items-container');
   container.innerHTML = "";
-  
+   
   if (cart.length === 0) {
     container.innerHTML = "<div class='text-center text-muted'>カートは空です</div>";
     document.getElementById('btn-final-order').disabled = true;
@@ -286,9 +286,13 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
+// ▼▼▼ 修正箇所: 注文実行処理 (AI起動用) ▼▼▼
 function executeOrder() {
   confirmModal.hide(); 
   showLoading();
+  
+  // AIへ渡すために、注文内容を一時保存しておく
+  const lastOrderedItems = [...cart];
 
   const payload = { 
     accessToken: liff.getAccessToken(), 
@@ -306,7 +310,14 @@ function executeOrder() {
     try { data = JSON.parse(res.text); }
     catch(e) {
       if(res.text.includes("success") || res.text.includes("注文完了")) {
-         shouldReload = true; hideLoading(); recommendModal.show(); cart = []; updateCartUI(); return;
+          // 例外的な成功パターン
+          shouldReload = true; 
+          hideLoading(); 
+          cart = []; 
+          updateCartUI();
+          // ★ここでAIおすすめ画面を起動
+          showRecommendationModal(lastOrderedItems); 
+          return;
       }
       throw new Error("通信エラー");
     }
@@ -314,9 +325,10 @@ function executeOrder() {
     if(data.status === "success"){
       shouldReload = true;
       hideLoading();
-      recommendModal.show();
       cart = [];
       updateCartUI();
+      // ★ここでAIおすすめ画面を起動
+      showRecommendationModal(lastOrderedItems);
     } else { 
       throw new Error(data.message); 
     }
@@ -453,13 +465,26 @@ function loadAndRenderChart() {
   });
 }
 function calculateAndDraw(itemNames) {
+  const stats = calculateStats(itemNames); // 下の関数を利用
+  
+  // レーダーチャート用データ
+  const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
+  drawChart(dataValues);
+  
+  // マイページ用のAIコメント取得
+  fetchAiComment(stats, itemNames);
+}
+
+// 統計データを計算する共通関数（AIおすすめモーダルでも使うため分離）
+function calculateStats(itemNames) {
   let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
   let count = 0;
+  
+  // 引数がなければ全履歴を取得したいところだが、
+  // ここでは引数のitemNames（配列）をベースに計算する
+  if(!itemNames) itemNames = [];
+
   itemNames.forEach(name => {
-    // オプション込みの名前から、元のメニュー名を推測するのは難しい場合があるため
-    // 簡易的に前方一致などで検索するか、本来はIDで紐付けるべきだが、
-    // ここでは簡易分析のため「メニュー名が含まれるもの」をカウントする形でも良い
-    // もしくは、オプション文字を除去してマッチングする
     const baseName = name.split(' (')[0]; 
     const masterItem = allMenuItems.find(m => m.name === baseName);
     if (masterItem && masterItem.params) {
@@ -471,17 +496,18 @@ function calculateAndDraw(itemNames) {
       count++;
     }
   });
-  const avgStats = count === 0 ? { salty:0, sweet:0, sour:0, bitter:0, rich:0 } : {
+
+  if (count === 0) return { salty:0, sweet:0, sour:0, bitter:0, rich:0 };
+
+  return {
     salty: Number((stats.salty / count).toFixed(1)),
     sweet: Number((stats.sweet / count).toFixed(1)),
     sour:  Number((stats.sour / count).toFixed(1)),
     bitter: Number((stats.bitter / count).toFixed(1)),
     rich:  Number((stats.rich / count).toFixed(1))
   };
-  const dataValues = [avgStats.salty, avgStats.sweet, avgStats.sour, avgStats.bitter, avgStats.rich];
-  drawChart(dataValues);
-  fetchAiComment(avgStats, itemNames);
 }
+
 function drawChart(dataValues) {
   const ctx = document.getElementById('tasteChart').getContext('2d');
   if (tasteChartInstance) tasteChartInstance.destroy();
@@ -509,4 +535,74 @@ function fetchAiComment(stats, historyItems) {
   .then(res => res.json())
   .then(data => { if (data.status === "success" && commentBox) { commentBox.innerText = data.message; } else if(commentBox) { commentBox.innerText = "コメントの取得に失敗しました。"; } })
   .catch(err => { if(commentBox) commentBox.innerText = "通信エラーが発生しました。"; });
+}
+
+// =========================================================
+// ▼▼▼ 新規追加: 敏腕セールスマンAI (注文後のレコメンド) ▼▼▼
+// =========================================================
+
+function showRecommendationModal(orderedItems) {
+    const modal = document.getElementById('recommendModal'); // HTML上のIDは recommendModal か recommendation-modal か要確認
+    // ※ 初期化部分で recommendModal = new bootstrap.Modal(...) としているので、変数 recommendModal を使う
+    
+    // 中身のテキスト要素を取得
+    const textElem = document.getElementById('recommendation-text');
+    if (!recommendModal || !textElem) return;
+
+    // 1. モーダルを表示
+    recommendModal.show();
+    textElem.innerText = "AIソムリエが、あなたに合う一杯を厳選中...";
+
+    // 2. 現在の味覚ステータスを計算 (今回の注文も含めて分析させたい場合)
+    // 簡易的に今回の注文のみで傾向を見るか、過去履歴も含めるかは要件次第だが、
+    // ここでは「今回の注文」に基づいて提案してもらう
+    const itemNames = orderedItems.map(i => i.name);
+    const currentStats = calculateStats(itemNames);
+    
+    // 3. GAS経由でGeminiに聞きに行く
+    const payload = { 
+        action: "getAiComment", 
+        stats: currentStats, 
+        history: itemNames 
+    };
+
+    fetch(GAS_API_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === "success") {
+            // AIの言葉を少しずつ表示する演出
+            typeWriter(textElem, res.message);
+        } else {
+            textElem.innerText = "申し訳ありません。AI通信に失敗しました。";
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        textElem.innerText = "通信エラーが発生しました。";
+    });
+}
+
+// 文字を少しずつ表示する演出
+function typeWriter(element, text) {
+    element.innerText = "";
+    let i = 0;
+    const speed = 30; // 文字送りスピード(ms)
+    function type() {
+        if (i < text.length) {
+            element.innerText += text.charAt(i);
+            i++;
+            setTimeout(type, speed);
+        }
+    }
+    type();
+}
+
+// モーダルを閉じる関数（完了ボタン用）
+function closeRecommendation() {
+    recommendModal.hide();
+    // 最後に感謝メッセージを出すならここ
+    showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
