@@ -274,10 +274,14 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// ▼▼▼ 注文実行処理 (修正: ローディング維持) ▼▼▼
+// ▼▼▼ 注文実行処理 (画面遷移をシームレスにする修正) ▼▼▼
 function executeOrder() {
+  // 1. まず全画面ローディングを出す（これが最優先）
+  showLoading(); 
+  
+  // 2. その後で確認モーダルを閉じる
+  // (ローディングが前面にあるので、裏で閉じてもメニュー画面は見えない)
   confirmModal.hide(); 
-  showLoading(); // ここでグルグル開始
   
   const lastOrderedItems = [...cart];
 
@@ -298,9 +302,9 @@ function executeOrder() {
     catch(e) {
       if(res.text.includes("success") || res.text.includes("注文完了")) {
           shouldReload = true; 
-          // ★修正: ここで hideLoading() しない！（AIモーダル表示まで維持）
           cart = []; 
           updateCartUI();
+          // ローディングを消さずに、そのままAI画面へバトンタッチ
           showRecommendationModal(lastOrderedItems); 
           return;
       }
@@ -309,12 +313,12 @@ function executeOrder() {
     
     if(data.status === "success"){
       shouldReload = true;
-      // ★修正: ここで hideLoading() しない！（AIモーダル表示まで維持）
       cart = [];
       updateCartUI();
+      // ローディングを消さずに、そのままAI画面へバトンタッチ
       showRecommendationModal(lastOrderedItems);
     } else { 
-      // エラー時はローディングを消す
+      // エラーの時だけローディングを消す
       hideLoading();
       throw new Error(data.message); 
     }
@@ -516,7 +520,7 @@ function fetchAiComment(stats, historyItems) {
 }
 
 // =========================================================
-// ▼▼▼ 敏腕セールスマンAI (注文後のレコメンド) ▼▼▼
+// ▼▼▼ 敏腕セールスマンAI (表示タイミング調整) ▼▼▼
 // =========================================================
 
 function showRecommendationModal(orderedItems) {
@@ -526,24 +530,30 @@ function showRecommendationModal(orderedItems) {
     const itemContainer = document.getElementById('recommendation-item-container');
     const cardArea = document.getElementById('recommendation-card-area');
 
-    if (!textElem) return;
+    if (!textElem) {
+        hideLoading(); 
+        return;
+    }
 
-    // 1. 初期表示
-    recommendModal.show();
+    // 1. 中身を初期化
     textElem.innerHTML = ""; 
     textElem.style.display = 'none'; 
     loadingElem.style.display = 'block'; 
     itemContainer.style.display = 'none'; 
     cardArea.innerHTML = "";
 
-    // ★修正: AI画面が出たので、全画面ローディングを消す
-    hideLoading();
+    // 2. モーダルを表示
+    recommendModal.show();
 
-    // 2. データ準備
+    // 3. モーダルが表示された頃合いを見て全画面ローディングを消す
+    setTimeout(() => {
+        hideLoading();
+    }, 500);
+
+    // 4. データ準備 & GAS送信
     const itemNames = orderedItems.map(i => i.name);
     const currentStats = calculateStats(itemNames);
     
-    // GASへ送信
     const payload = { 
         action: "getAiComment", 
         stats: currentStats, 
@@ -556,7 +566,7 @@ function showRecommendationModal(orderedItems) {
     })
     .then(r => r.json())
     .then(res => {
-        loadingElem.style.display = 'none';
+        loadingElem.style.display = 'none'; 
         textElem.style.display = 'block';
 
         if (res.status === "success") {
