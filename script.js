@@ -610,13 +610,12 @@ function showRecommendationModal(orderedItems) {
     });
 }
 
-// おすすめ商品カードを生成して表示する関数
+// おすすめ商品カードを生成して表示する関数 (スマホ対応版)
 function renderRecommendCard(targetItemName) {
     const itemContainer = document.getElementById('recommendation-item-container');
     const cardArea = document.getElementById('recommendation-card-area');
     
-    // allMenuItemsから名前で商品を検索（完全一致または部分一致）
-    // AIが少し名前を間違えてもヒットするように、trimして比較
+    // アイテム検索
     const item = allMenuItems.find(m => m.name.trim() === targetItemName.trim());
 
     if (!item) {
@@ -626,18 +625,24 @@ function renderRecommendCard(targetItemName) {
 
     const imgUrl = convertDriveUrl(item.image);
     
-    // シンプルな横長カードを作成
+    // ★ここが修正版: スマホでも崩れないFlexbox構成
     const html = `
       <div class="card border-0 shadow-sm" style="overflow:hidden;">
         <div class="d-flex align-items-center p-2">
-          <img src="${imgUrl}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
-          <div class="ms-3 flex-grow-1 text-start">
-            <div class="fw-bold text-dark" style="font-size: 0.95rem;">${item.name}</div>
+          <div class="flex-shrink-0">
+            <img src="${imgUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
+          </div>
+          
+          <div class="ms-3 flex-grow-1 text-start" style="min-width: 0;">
+            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">${item.name}</div>
             <div class="text-primary fw-bold small">¥${item.price}</div>
           </div>
-          <button class="btn btn-sm btn-primary px-3 rounded-pill" onclick="addItemFromRecommend('${item.id}')">
-            追加
-          </button>
+          
+          <div class="ms-2 flex-shrink-0">
+            <button class="btn btn-sm btn-primary px-3 rounded-pill" style="font-size: 0.8rem; white-space: nowrap;" onclick="addItemFromRecommend('${item.id}')">
+              追加
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -647,8 +652,8 @@ function renderRecommendCard(targetItemName) {
     // 遅延させてふわっと表示
     setTimeout(() => {
         itemContainer.style.display = 'block';
-        itemContainer.classList.add('fade-in-up'); // CSSアニメがあれば適用
-    }, 1000); // 文章が少し出たころに表示
+        itemContainer.classList.add('fade-in-up'); 
+    }, 1000); 
 }
 
 // おすすめモーダルからカートに追加する処理
