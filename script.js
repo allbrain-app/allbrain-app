@@ -1,7 +1,7 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-// モーダル変数に optionModal を追加
+// モーダル変数
 let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal;
 let tasteChartInstance = null;
 let shouldReload = false;
@@ -274,17 +274,35 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// ▼▼▼ 注文実行処理 (画面遷移をシームレスにする修正) ▼▼▼
+// ▼▼▼ 注文実行処理 (修正版: 即座に画面遷移) ▼▼▼
 function executeOrder() {
-  // 1. まず全画面ローディングを出す（これが最優先）
-  showLoading(); 
-  
-  // 2. その後で確認モーダルを閉じる
-  // (ローディングが前面にあるので、裏で閉じてもメニュー画面は見えない)
+  // 1. まず確認モーダルを閉じる
   confirmModal.hide(); 
   
+  // 2. 通信結果を待たずに、即座にAIモーダルを開く (体感ラグゼロ)
+  //    中身は「送信中」の表示にしておく
+  if (!recommendModal) recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
+  const textElem = document.getElementById('recommendation-text');
+  const loadingElem = document.getElementById('recommendation-loading');
+  const itemContainer = document.getElementById('recommendation-item-container');
+  const cardArea = document.getElementById('recommendation-card-area');
+  
+  // UI初期化（送信中状態）
+  recommendModal.show();
+  if(textElem) textElem.style.display = 'none';
+  if(loadingElem) {
+      loadingElem.style.display = 'block';
+      // 文言を「送信中」にする
+      const loadingText = loadingElem.querySelector('p');
+      if(loadingText) loadingText.innerText = "ご注文を送信しています...";
+  }
+  if(itemContainer) itemContainer.style.display = 'none';
+  if(cardArea) cardArea.innerHTML = "";
+
+  // 注文内容を退避
   const lastOrderedItems = [...cart];
 
+  // 3. 裏で通信開始
   const payload = { 
     accessToken: liff.getAccessToken(), 
     items: cart,
@@ -300,49 +318,152 @@ function executeOrder() {
     let data;
     try { data = JSON.parse(res.text); }
     catch(e) {
+      // 例外的な成功含む
       if(res.text.includes("success") || res.text.includes("注文完了")) {
-          shouldReload = true; 
-          cart = []; 
-          updateCartUI();
-          // ローディングを消さずに、そのままAI画面へバトンタッチ
-          showRecommendationModal(lastOrderedItems); 
+          handleOrderSuccess(lastOrderedItems);
           return;
       }
       throw new Error("通信エラー");
     }
     
     if(data.status === "success"){
-      shouldReload = true;
-      cart = [];
-      updateCartUI();
-      // ローディングを消さずに、そのままAI画面へバトンタッチ
-      showRecommendationModal(lastOrderedItems);
+        handleOrderSuccess(lastOrderedItems);
     } else { 
-      // エラーの時だけローディングを消す
-      hideLoading();
-      throw new Error(data.message); 
+        // エラー時はモーダルを隠してアラート（またはモーダル内でエラー表示）
+        recommendModal.hide();
+        throw new Error(data.message); 
     }
   })
   .catch(err => {
-     hideLoading();
+     recommendModal.hide();
      showMessage("Error", err.message);
   });
+}
+
+// 注文成功後の処理（ここからAI分析へ移行）
+function handleOrderSuccess(items) {
+    shouldReload = true;
+    cart = [];
+    updateCartUI();
+
+    // モーダル内のローディング文言を「分析中」に切り替え
+    const loadingElem = document.getElementById('recommendation-loading');
+    if(loadingElem) {
+        const loadingText = loadingElem.querySelector('p');
+        if(loadingText) loadingText.innerText = "AIソムリエが分析中...";
+    }
+    
+    // AI取得処理を開始
+    startAiAnalysis(items);
+}
+
+// ▼▼▼ 敏腕セールスマンAI (分析実行・表示) ▼▼▼
+function startAiAnalysis(orderedItems) {
+    // 既にモーダルは開いている前提
+    const textElem = document.getElementById('recommendation-text');
+    const loadingElem = document.getElementById('recommendation-loading');
+    
+    const itemNames = orderedItems.map(i => i.name);
+    const currentStats = calculateStats(itemNames);
+    
+    const payload = { 
+        action: "getAiComment", 
+        stats: currentStats, 
+        history: itemNames 
+    };
+
+    fetch(GAS_API_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
+        // 分析完了: グルグルを消してテキスト表示
+        if(loadingElem) loadingElem.style.display = 'none';
+        if(textElem) textElem.style.display = 'block';
+
+        if (res.status === "success") {
+            try {
+                const aiData = JSON.parse(res.message);
+                typeWriter(textElem, aiData.message || "おすすめをご用意しました。");
+                if (aiData.recommendItemName) {
+                    renderRecommendCard(aiData.recommendItemName);
+                }
+            } catch (e) {
+                typeWriter(textElem, res.message);
+            }
+        } else {
+            textElem.innerText = "通信エラーが発生しました。";
+        }
+    })
+    .catch(err => {
+        if(loadingElem) loadingElem.style.display = 'none';
+        if(textElem) {
+            textElem.style.display = 'block';
+            textElem.innerText = "システムエラーが発生しました。";
+        }
+        console.error(err);
+    });
+}
+
+// おすすめ商品カードを生成 (スマホ対応版)
+function renderRecommendCard(targetItemName) {
+    const itemContainer = document.getElementById('recommendation-item-container');
+    const cardArea = document.getElementById('recommendation-card-area');
+    
+    const item = allMenuItems.find(m => m.name.trim() === targetItemName.trim());
+
+    if (!item) {
+        console.log("推奨商品は見つかりませんでした: " + targetItemName);
+        return; 
+    }
+
+    const imgUrl = convertDriveUrl(item.image);
+    
+    const html = `
+      <div class="card border-0 shadow-sm" style="overflow:hidden;">
+        <div class="d-flex align-items-center p-2">
+          <div class="flex-shrink-0">
+            <img src="${imgUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
+          </div>
+          <div class="ms-3 flex-grow-1 text-start" style="min-width: 0;">
+            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">${item.name}</div>
+            <div class="text-primary fw-bold small">¥${item.price}</div>
+          </div>
+          <div class="ms-2 flex-shrink-0">
+            <button class="btn btn-sm btn-primary px-3 rounded-pill" style="font-size: 0.8rem; white-space: nowrap;" onclick="addItemFromRecommend('${item.id}')">
+              追加
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    cardArea.innerHTML = html;
+    setTimeout(() => {
+        itemContainer.style.display = 'block';
+        itemContainer.classList.add('fade-in-up'); 
+    }, 1000); 
+}
+
+// おすすめモーダルからカートに追加し、注文画面へ進む処理
+function addItemFromRecommend(itemId) {
+    recommendModal.hide();
+    const item = allMenuItems.find(m => String(m.id) === String(itemId));
+    if (!item) return;
+
+    if (item.optionsStr && item.optionsStr.trim() !== "") {
+        setTimeout(() => { addToCart(itemId); }, 300);
+    } else {
+        addToCart(itemId);
+        setTimeout(() => { showConfirmModal(); }, 300);
+    }
 }
 
 function showMessage(title, body) {
   document.getElementById('messageModalTitle').innerText = title;
   document.getElementById('messageModalBody').innerHTML = body;
   messageModal.show();
-}
-
-function showLoading() {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.classList.remove('overlay-hidden');
-}
-
-function hideLoading() {
-  const overlay = document.getElementById('loading-overlay');
-  overlay.classList.add('overlay-hidden');
 }
 
 function finishOrderFlow() {
@@ -517,132 +638,6 @@ function fetchAiComment(stats, historyItems) {
   .then(res => res.json())
   .then(data => { if (data.status === "success" && commentBox) { commentBox.innerText = data.message; } else if(commentBox) { commentBox.innerText = "コメントの取得に失敗しました。"; } })
   .catch(err => { if(commentBox) commentBox.innerText = "通信エラーが発生しました。"; });
-}
-
-// =========================================================
-// ▼▼▼ 敏腕セールスマンAI (表示タイミング調整) ▼▼▼
-// =========================================================
-
-function showRecommendationModal(orderedItems) {
-    if (!recommendModal) recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
-    const textElem = document.getElementById('recommendation-text');
-    const loadingElem = document.getElementById('recommendation-loading');
-    const itemContainer = document.getElementById('recommendation-item-container');
-    const cardArea = document.getElementById('recommendation-card-area');
-
-    if (!textElem) {
-        hideLoading(); 
-        return;
-    }
-
-    // 1. 中身を初期化
-    textElem.innerHTML = ""; 
-    textElem.style.display = 'none'; 
-    loadingElem.style.display = 'block'; 
-    itemContainer.style.display = 'none'; 
-    cardArea.innerHTML = "";
-
-    // 2. モーダルを表示
-    recommendModal.show();
-
-    // 3. モーダルが表示された頃合いを見て全画面ローディングを消す
-    setTimeout(() => {
-        hideLoading();
-    }, 500);
-
-    // 4. データ準備 & GAS送信
-    const itemNames = orderedItems.map(i => i.name);
-    const currentStats = calculateStats(itemNames);
-    
-    const payload = { 
-        action: "getAiComment", 
-        stats: currentStats, 
-        history: itemNames 
-    };
-
-    fetch(GAS_API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(res => {
-        loadingElem.style.display = 'none'; 
-        textElem.style.display = 'block';
-
-        if (res.status === "success") {
-            try {
-                const aiData = JSON.parse(res.message);
-                typeWriter(textElem, aiData.message || "おすすめをご用意しました。");
-                if (aiData.recommendItemName) {
-                    renderRecommendCard(aiData.recommendItemName);
-                }
-            } catch (e) {
-                typeWriter(textElem, res.message);
-            }
-        } else {
-            textElem.innerText = "通信エラーが発生しました。";
-        }
-    })
-    .catch(err => {
-        loadingElem.style.display = 'none';
-        textElem.style.display = 'block';
-        textElem.innerText = "システムエラーが発生しました。";
-        console.error(err);
-    });
-}
-
-// おすすめ商品カードを生成 (スマホ対応版)
-function renderRecommendCard(targetItemName) {
-    const itemContainer = document.getElementById('recommendation-item-container');
-    const cardArea = document.getElementById('recommendation-card-area');
-    
-    const item = allMenuItems.find(m => m.name.trim() === targetItemName.trim());
-
-    if (!item) {
-        console.log("推奨商品は見つかりませんでした: " + targetItemName);
-        return; 
-    }
-
-    const imgUrl = convertDriveUrl(item.image);
-    
-    const html = `
-      <div class="card border-0 shadow-sm" style="overflow:hidden;">
-        <div class="d-flex align-items-center p-2">
-          <div class="flex-shrink-0">
-            <img src="${imgUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
-          </div>
-          <div class="ms-3 flex-grow-1 text-start" style="min-width: 0;">
-            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">${item.name}</div>
-            <div class="text-primary fw-bold small">¥${item.price}</div>
-          </div>
-          <div class="ms-2 flex-shrink-0">
-            <button class="btn btn-sm btn-primary px-3 rounded-pill" style="font-size: 0.8rem; white-space: nowrap;" onclick="addItemFromRecommend('${item.id}')">
-              追加
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    cardArea.innerHTML = html;
-    setTimeout(() => {
-        itemContainer.style.display = 'block';
-        itemContainer.classList.add('fade-in-up'); 
-    }, 1000); 
-}
-
-// おすすめモーダルからカートに追加し、注文画面へ進む処理
-function addItemFromRecommend(itemId) {
-    recommendModal.hide();
-    const item = allMenuItems.find(m => String(m.id) === String(itemId));
-    if (!item) return;
-
-    if (item.optionsStr && item.optionsStr.trim() !== "") {
-        setTimeout(() => { addToCart(itemId); }, 300);
-    } else {
-        addToCart(itemId);
-        setTimeout(() => { showConfirmModal(); }, 300);
-    }
 }
 
 function typeWriter(element, text) {
