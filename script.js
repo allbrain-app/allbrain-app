@@ -7,7 +7,7 @@ let tasteChartInstance = null;
 let shouldReload = false;
 let currentTableId = null;
 
-// ★追加: オプション選択中の一時データ
+// オプション選択中の一時データ
 let pendingItem = null; 
 
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img";
@@ -40,7 +40,6 @@ window.onload = function() {
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
   historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
-  // ★追加
   optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
 
   initializeLiff();
@@ -105,7 +104,6 @@ function renderMenu() {
     const isSoldOut = item.isSoldOut;
     const btnState = isSoldOut ? 'disabled' : '';
     const btnText = isSoldOut ? 'SOLD OUT' : '追加';
-    // デザイン汎用化: btn-secondary はそのまま、追加ボタンは btn-add クラスへ
     const btnClass = isSoldOut ? 'btn-secondary' : 'btn-add';
     const cardOpacity = isSoldOut ? 'opacity: 0.6;' : '';
     const imgUrl = convertDriveUrl(item.image);
@@ -134,31 +132,26 @@ function convertDriveUrl(url) {
   return url;
 }
 
-// ▼▼▼ 修正: カート追加 (オプション対応) ▼▼▼
+// カート追加 (オプション対応)
 function addToCart(id) {
-  // IDからアイテム情報を検索 (String型で比較)
   const item = allMenuItems.find(m => String(m.id) === String(id));
-   
   if (!item) return;
 
-  // オプションがある場合
   if (item.optionsStr && item.optionsStr.trim() !== "") {
     openOptionModal(item);
   } else {
-    // オプションがない場合はそのまま追加
     cart.push({ id: item.id, name: item.name, price: item.price, options: [] });
     updateCartUI();
   }
 }
 
-// ▼▼▼ 追加: オプション関連ロジック ▼▼▼
+// オプション関連ロジック
 function openOptionModal(item) {
   if (!optionModal) optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
    
   pendingItem = item;
   document.getElementById('optionModalTitle').innerText = item.name;
    
-  // オプション文字列をパース "大盛り:100,ネギ抜き:0" -> [{name, price}, ...]
   const options = item.optionsStr.split(',').map(s => {
     const parts = s.split(':');
     return { name: parts[0], price: Number(parts[1] || 0) };
@@ -167,7 +160,6 @@ function openOptionModal(item) {
   const container = document.getElementById('option-container');
   container.innerHTML = '';
 
-  // チェックボックスとして描画
   options.forEach((opt, index) => {
     const html = `
       <div class="form-check py-2 border-bottom">
@@ -182,7 +174,6 @@ function openOptionModal(item) {
     container.innerHTML += html;
   });
 
-  // 初期計算
   calcOptionTotal();
   optionModal.show();
 }
@@ -218,7 +209,6 @@ function confirmOptionAdd() {
   let finalPrice = pendingItem.price;
   let displayName = pendingItem.name;
 
-  // 選択オプションを収集
   if (checkboxes.length > 0) {
     const optNames = [];
     checkboxes.forEach(cb => {
@@ -228,15 +218,13 @@ function confirmOptionAdd() {
       optNames.push(opt.name);
       finalPrice += opt.price;
     });
-    // 商品名にオプションを追記 (例: ラーメン (大盛り, 味玉))
     displayName += ` (${optNames.join(', ')})`;
   }
 
-  // カートへ追加
   cart.push({ 
     id: pendingItem.id, 
-    name: displayName, // オプション込みの名前
-    price: finalPrice, // オプション込みの価格
+    name: displayName, 
+    price: finalPrice, 
     options: addedOptions 
   });
 
@@ -286,12 +274,11 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// ▼▼▼ 修正箇所: 注文実行処理 (AI起動用) ▼▼▼
+// ▼▼▼ 注文実行処理 (修正: ローディング維持) ▼▼▼
 function executeOrder() {
   confirmModal.hide(); 
-  showLoading();
+  showLoading(); // ここでグルグル開始
   
-  // AIへ渡すために、注文内容を一時保存しておく
   const lastOrderedItems = [...cart];
 
   const payload = { 
@@ -310,12 +297,10 @@ function executeOrder() {
     try { data = JSON.parse(res.text); }
     catch(e) {
       if(res.text.includes("success") || res.text.includes("注文完了")) {
-          // 例外的な成功パターン
           shouldReload = true; 
-          hideLoading(); 
+          // ★修正: ここで hideLoading() しない！（AIモーダル表示まで維持）
           cart = []; 
           updateCartUI();
-          // ★ここでAIおすすめ画面を起動
           showRecommendationModal(lastOrderedItems); 
           return;
       }
@@ -324,12 +309,13 @@ function executeOrder() {
     
     if(data.status === "success"){
       shouldReload = true;
-      hideLoading();
+      // ★修正: ここで hideLoading() しない！（AIモーダル表示まで維持）
       cart = [];
       updateCartUI();
-      // ★ここでAIおすすめ画面を起動
       showRecommendationModal(lastOrderedItems);
     } else { 
+      // エラー時はローディングを消す
+      hideLoading();
       throw new Error(data.message); 
     }
   })
@@ -360,7 +346,7 @@ function finishOrderFlow() {
   showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
 
-// 履歴・会計・マイページ系（変更なし）
+// 履歴・会計・マイページ系
 function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   historyModal.show();
@@ -465,23 +451,16 @@ function loadAndRenderChart() {
   });
 }
 function calculateAndDraw(itemNames) {
-  const stats = calculateStats(itemNames); // 下の関数を利用
-  
-  // レーダーチャート用データ
+  const stats = calculateStats(itemNames); 
   const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
   drawChart(dataValues);
-  
-  // マイページ用のAIコメント取得
   fetchAiComment(stats, itemNames);
 }
 
-// 統計データを計算する共通関数（AIおすすめモーダルでも使うため分離）
+// 統計データ計算
 function calculateStats(itemNames) {
   let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
   let count = 0;
-  
-  // 引数がなければ全履歴を取得したいところだが、
-  // ここでは引数のitemNames（配列）をベースに計算する
   if(!itemNames) itemNames = [];
 
   itemNames.forEach(name => {
@@ -511,7 +490,6 @@ function calculateStats(itemNames) {
 function drawChart(dataValues) {
   const ctx = document.getElementById('tasteChart').getContext('2d');
   if (tasteChartInstance) tasteChartInstance.destroy();
-  // ライトモード用の色設定
   const colorPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff9800';
   
   tasteChartInstance = new Chart(ctx, {
@@ -538,11 +516,10 @@ function fetchAiComment(stats, historyItems) {
 }
 
 // =========================================================
-// ▼▼▼ 修正版: 敏腕セールスマンAI (商品提案＆追加ボタン) ▼▼▼
+// ▼▼▼ 敏腕セールスマンAI (注文後のレコメンド) ▼▼▼
 // =========================================================
 
 function showRecommendationModal(orderedItems) {
-    // 1. モーダルと要素の取得
     if (!recommendModal) recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
@@ -551,15 +528,18 @@ function showRecommendationModal(orderedItems) {
 
     if (!textElem) return;
 
-    // 2. 初期表示状態セット (グルグル表示、テキストクリア)
+    // 1. 初期表示
     recommendModal.show();
     textElem.innerHTML = ""; 
-    textElem.style.display = 'none'; // 文字は一旦隠す
-    loadingElem.style.display = 'block'; // グルグル表示
-    itemContainer.style.display = 'none'; // 商品エリア隠す
+    textElem.style.display = 'none'; 
+    loadingElem.style.display = 'block'; 
+    itemContainer.style.display = 'none'; 
     cardArea.innerHTML = "";
 
-    // 3. データ準備
+    // ★修正: AI画面が出たので、全画面ローディングを消す
+    hideLoading();
+
+    // 2. データ準備
     const itemNames = orderedItems.map(i => i.name);
     const currentStats = calculateStats(itemNames);
     
@@ -576,26 +556,17 @@ function showRecommendationModal(orderedItems) {
     })
     .then(r => r.json())
     .then(res => {
-        // ローディング終了
         loadingElem.style.display = 'none';
         textElem.style.display = 'block';
 
         if (res.status === "success") {
             try {
-                // GASから返ってきたJSON文字列をパース
-                // { message: "...", recommendItemName: "..." }
                 const aiData = JSON.parse(res.message);
-                
-                // メッセージをタイプライター表示
                 typeWriter(textElem, aiData.message || "おすすめをご用意しました。");
-
-                // おすすめ商品がある場合、カードを表示
                 if (aiData.recommendItemName) {
                     renderRecommendCard(aiData.recommendItemName);
                 }
-
             } catch (e) {
-                // JSONパース失敗時はそのままテキストとして表示
                 typeWriter(textElem, res.message);
             }
         } else {
@@ -610,12 +581,11 @@ function showRecommendationModal(orderedItems) {
     });
 }
 
-// おすすめ商品カードを生成して表示する関数 (スマホ対応版)
+// おすすめ商品カードを生成 (スマホ対応版)
 function renderRecommendCard(targetItemName) {
     const itemContainer = document.getElementById('recommendation-item-container');
     const cardArea = document.getElementById('recommendation-card-area');
     
-    // アイテム検索
     const item = allMenuItems.find(m => m.name.trim() === targetItemName.trim());
 
     if (!item) {
@@ -625,19 +595,16 @@ function renderRecommendCard(targetItemName) {
 
     const imgUrl = convertDriveUrl(item.image);
     
-    // ★ここが修正版: スマホでも崩れないFlexbox構成
     const html = `
       <div class="card border-0 shadow-sm" style="overflow:hidden;">
         <div class="d-flex align-items-center p-2">
           <div class="flex-shrink-0">
             <img src="${imgUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
           </div>
-          
           <div class="ms-3 flex-grow-1 text-start" style="min-width: 0;">
             <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">${item.name}</div>
             <div class="text-primary fw-bold small">¥${item.price}</div>
           </div>
-          
           <div class="ms-2 flex-shrink-0">
             <button class="btn btn-sm btn-primary px-3 rounded-pill" style="font-size: 0.8rem; white-space: nowrap;" onclick="addItemFromRecommend('${item.id}')">
               追加
@@ -648,40 +615,23 @@ function renderRecommendCard(targetItemName) {
     `;
 
     cardArea.innerHTML = html;
-    
-    // 遅延させてふわっと表示
     setTimeout(() => {
         itemContainer.style.display = 'block';
         itemContainer.classList.add('fade-in-up'); 
     }, 1000); 
 }
 
-// おすすめモーダルからカートに追加する処理
 // おすすめモーダルからカートに追加し、注文画面へ進む処理
 function addItemFromRecommend(itemId) {
-    // 1. まずAIモーダルを閉じる
     recommendModal.hide();
-
-    // 2. 商品情報を取得して分岐
     const item = allMenuItems.find(m => String(m.id) === String(itemId));
     if (!item) return;
 
-    // A. オプション（大盛りなど）がある商品の場合
     if (item.optionsStr && item.optionsStr.trim() !== "") {
-        // オプション画面を開く（ここは通常の追加フローにお任せ）
-        setTimeout(() => {
-            addToCart(itemId);
-        }, 300);
-        
+        setTimeout(() => { addToCart(itemId); }, 300);
     } else {
-        // B. オプションがない通常商品の場合
-        // カートに追加
         addToCart(itemId);
-        
-        // ★ここがポイント: 即座に「注文確認画面」を開く
-        setTimeout(() => {
-            showConfirmModal();
-        }, 300);
+        setTimeout(() => { showConfirmModal(); }, 300);
     }
 }
 
@@ -697,26 +647,4 @@ function typeWriter(element, text) {
         }
     }
     type();
-}
-
-// 文字を少しずつ表示する演出
-function typeWriter(element, text) {
-    element.innerText = "";
-    let i = 0;
-    const speed = 30; // 文字送りスピード(ms)
-    function type() {
-        if (i < text.length) {
-            element.innerText += text.charAt(i);
-            i++;
-            setTimeout(type, speed);
-        }
-    }
-    type();
-}
-
-// モーダルを閉じる関数（完了ボタン用）
-function closeRecommendation() {
-    recommendModal.hide();
-    // 最後に感謝メッセージを出すならここ
-    showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
