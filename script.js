@@ -538,28 +538,32 @@ function fetchAiComment(stats, historyItems) {
 }
 
 // =========================================================
-// ▼▼▼ 新規追加: 敏腕セールスマンAI (注文後のレコメンド) ▼▼▼
+// ▼▼▼ 修正版: 敏腕セールスマンAI (商品提案＆追加ボタン) ▼▼▼
 // =========================================================
 
 function showRecommendationModal(orderedItems) {
-    const modal = document.getElementById('recommendModal'); // HTML上のIDは recommendModal か recommendation-modal か要確認
-    // ※ 初期化部分で recommendModal = new bootstrap.Modal(...) としているので、変数 recommendModal を使う
-    
-    // 中身のテキスト要素を取得
+    // 1. モーダルと要素の取得
+    if (!recommendModal) recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
     const textElem = document.getElementById('recommendation-text');
-    if (!recommendModal || !textElem) return;
+    const loadingElem = document.getElementById('recommendation-loading');
+    const itemContainer = document.getElementById('recommendation-item-container');
+    const cardArea = document.getElementById('recommendation-card-area');
 
-    // 1. モーダルを表示
+    if (!textElem) return;
+
+    // 2. 初期表示状態セット (グルグル表示、テキストクリア)
     recommendModal.show();
-    textElem.innerText = "AIソムリエが、あなたに合う一杯を厳選中...";
+    textElem.innerHTML = ""; 
+    textElem.style.display = 'none'; // 文字は一旦隠す
+    loadingElem.style.display = 'block'; // グルグル表示
+    itemContainer.style.display = 'none'; // 商品エリア隠す
+    cardArea.innerHTML = "";
 
-    // 2. 現在の味覚ステータスを計算 (今回の注文も含めて分析させたい場合)
-    // 簡易的に今回の注文のみで傾向を見るか、過去履歴も含めるかは要件次第だが、
-    // ここでは「今回の注文」に基づいて提案してもらう
+    // 3. データ準備
     const itemNames = orderedItems.map(i => i.name);
     const currentStats = calculateStats(itemNames);
     
-    // 3. GAS経由でGeminiに聞きに行く
+    // GASへ送信
     const payload = { 
         action: "getAiComment", 
         stats: currentStats, 
@@ -572,17 +576,107 @@ function showRecommendationModal(orderedItems) {
     })
     .then(r => r.json())
     .then(res => {
+        // ローディング終了
+        loadingElem.style.display = 'none';
+        textElem.style.display = 'block';
+
         if (res.status === "success") {
-            // AIの言葉を少しずつ表示する演出
-            typeWriter(textElem, res.message);
+            try {
+                // GASから返ってきたJSON文字列をパース
+                // { message: "...", recommendItemName: "..." }
+                const aiData = JSON.parse(res.message);
+                
+                // メッセージをタイプライター表示
+                typeWriter(textElem, aiData.message || "おすすめをご用意しました。");
+
+                // おすすめ商品がある場合、カードを表示
+                if (aiData.recommendItemName) {
+                    renderRecommendCard(aiData.recommendItemName);
+                }
+
+            } catch (e) {
+                // JSONパース失敗時はそのままテキストとして表示
+                typeWriter(textElem, res.message);
+            }
         } else {
-            textElem.innerText = "申し訳ありません。AI通信に失敗しました。";
+            textElem.innerText = "通信エラーが発生しました。";
         }
     })
     .catch(err => {
+        loadingElem.style.display = 'none';
+        textElem.style.display = 'block';
+        textElem.innerText = "システムエラーが発生しました。";
         console.error(err);
-        textElem.innerText = "通信エラーが発生しました。";
     });
+}
+
+// おすすめ商品カードを生成して表示する関数
+function renderRecommendCard(targetItemName) {
+    const itemContainer = document.getElementById('recommendation-item-container');
+    const cardArea = document.getElementById('recommendation-card-area');
+    
+    // allMenuItemsから名前で商品を検索（完全一致または部分一致）
+    // AIが少し名前を間違えてもヒットするように、trimして比較
+    const item = allMenuItems.find(m => m.name.trim() === targetItemName.trim());
+
+    if (!item) {
+        console.log("推奨商品は見つかりませんでした: " + targetItemName);
+        return; 
+    }
+
+    const imgUrl = convertDriveUrl(item.image);
+    
+    // シンプルな横長カードを作成
+    const html = `
+      <div class="card border-0 shadow-sm" style="overflow:hidden;">
+        <div class="d-flex align-items-center p-2">
+          <img src="${imgUrl}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
+          <div class="ms-3 flex-grow-1 text-start">
+            <div class="fw-bold text-dark" style="font-size: 0.95rem;">${item.name}</div>
+            <div class="text-primary fw-bold small">¥${item.price}</div>
+          </div>
+          <button class="btn btn-sm btn-primary px-3 rounded-pill" onclick="addItemFromRecommend('${item.id}')">
+            追加
+          </button>
+        </div>
+      </div>
+    `;
+
+    cardArea.innerHTML = html;
+    
+    // 遅延させてふわっと表示
+    setTimeout(() => {
+        itemContainer.style.display = 'block';
+        itemContainer.classList.add('fade-in-up'); // CSSアニメがあれば適用
+    }, 1000); // 文章が少し出たころに表示
+}
+
+// おすすめモーダルからカートに追加する処理
+function addItemFromRecommend(itemId) {
+    addToCart(itemId); // 既存の追加関数を利用
+    
+    // ボタンを「追加済」に変える演出
+    const btn = event.target;
+    btn.className = "btn btn-sm btn-secondary px-3 rounded-pill";
+    btn.innerText = "追加済";
+    btn.disabled = true;
+
+    // 少し待ってからメッセージを出す、またはモーダルを閉じる？
+    // ここではそのまま表示し続ける（続けて会計などをしてもらうため）
+}
+
+function typeWriter(element, text) {
+    element.innerText = "";
+    let i = 0;
+    const speed = 30; 
+    function type() {
+        if (i < text.length) {
+            element.innerText += text.charAt(i);
+            i++;
+            setTimeout(type, speed);
+        }
+    }
+    type();
 }
 
 // 文字を少しずつ表示する演出
