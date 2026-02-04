@@ -657,17 +657,32 @@ function renderRecommendCard(targetItemName) {
 }
 
 // おすすめモーダルからカートに追加する処理
+// おすすめモーダルからカートに追加し、注文画面へ進む処理
 function addItemFromRecommend(itemId) {
-    addToCart(itemId); // 既存の追加関数を利用
-    
-    // ボタンを「追加済」に変える演出
-    const btn = event.target;
-    btn.className = "btn btn-sm btn-secondary px-3 rounded-pill";
-    btn.innerText = "追加済";
-    btn.disabled = true;
+    // 1. まずAIモーダルを閉じる
+    recommendModal.hide();
 
-    // 少し待ってからメッセージを出す、またはモーダルを閉じる？
-    // ここではそのまま表示し続ける（続けて会計などをしてもらうため）
+    // 2. 商品情報を取得して分岐
+    const item = allMenuItems.find(m => String(m.id) === String(itemId));
+    if (!item) return;
+
+    // A. オプション（大盛りなど）がある商品の場合
+    if (item.optionsStr && item.optionsStr.trim() !== "") {
+        // オプション画面を開く（ここは通常の追加フローにお任せ）
+        setTimeout(() => {
+            addToCart(itemId);
+        }, 300);
+        
+    } else {
+        // B. オプションがない通常商品の場合
+        // カートに追加
+        addToCart(itemId);
+        
+        // ★ここがポイント: 即座に「注文確認画面」を開く
+        setTimeout(() => {
+            showConfirmModal();
+        }, 300);
+    }
 }
 
 function typeWriter(element, text) {
