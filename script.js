@@ -629,15 +629,37 @@ function drawChart(dataValues) {
     }
   });
 }
+
+
+// ▼▼▼ 修正版: My Taste用 (分析AIを呼び出す) ▼▼▼
 function fetchAiComment(stats, historyItems) {
   const commentBox = document.querySelector('#myPageModal .text-muted');
-  if(commentBox) commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary" role="status"></span> 分析中... AIがコメントを考えています';
-  if (historyItems.length === 0) { if(commentBox) commentBox.innerText = "まだデータがありません。注文するとAIが分析を開始します！"; return; }
-  const payload = { action: "getAiComment", stats: stats, history: historyItems };
+  
+  // ローディング表示
+  if(commentBox) commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span class="small text-primary">マスターがあなたの好みを分析中...</span>';
+  
+  if (historyItems.length === 0) { 
+    if(commentBox) commentBox.innerText = "まだデータがありません。注文履歴が増えると、AIがあなたの好みを分析します！"; 
+    return; 
+  }
+
+  // ★変更点: actionを "getTasteAnalysis" に変更
+  const payload = { action: "getTasteAnalysis", stats: stats, history: historyItems };
+
   fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
-  .then(data => { if (data.status === "success" && commentBox) { commentBox.innerText = data.message; } else if(commentBox) { commentBox.innerText = "コメントの取得に失敗しました。"; } })
-  .catch(err => { if(commentBox) commentBox.innerText = "通信エラーが発生しました。"; });
+  .then(data => { 
+    if (data.status === "success" && commentBox) { 
+      // ★変更点: JSONパース不要。そのまま表示する
+      // (改行コードを <br> に変換して見やすくする)
+      commentBox.innerHTML = data.message.replace(/\n/g, '<br>');
+    } else if(commentBox) { 
+      commentBox.innerText = "コメントの取得に失敗しました。"; 
+    } 
+  })
+  .catch(err => { 
+    if(commentBox) commentBox.innerText = "通信エラーが発生しました。"; 
+  });
 }
 
 function typeWriter(element, text) {
