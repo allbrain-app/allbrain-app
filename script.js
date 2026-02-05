@@ -1,8 +1,8 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-// モーダル変数
-let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal;
+// モーダル変数に tableModal を追加
+let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal, tableModal;
 let tasteChartInstance = null;
 let shouldReload = false;
 let currentTableId = null;
@@ -18,32 +18,66 @@ window.onload = function() {
     alert("config.js が見つかりません"); return;
   }
 
-  // テーブル番号の自動取得と記憶
-  const urlParams = new URLSearchParams(window.location.search);
-  const paramTableId = urlParams.get('table');
-
-  if (paramTableId) {
-    currentTableId = paramTableId;
-    localStorage.setItem('MO_TABLE_ID', currentTableId);
-  } else {
-    const savedTableId = localStorage.getItem('MO_TABLE_ID');
-    if (savedTableId) {
-      currentTableId = savedTableId;
-    } else {
-      currentTableId = prompt("テーブル番号を入力してください", "1") || "Free";
-      localStorage.setItem('MO_TABLE_ID', currentTableId);
-    }
-  }
-
+  // モーダル初期化
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
   historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
   optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
+  // ★追加
+  tableModal = new bootstrap.Modal(document.getElementById('tableModal'));
 
-  initializeLiff();
+  // テーブルIDチェック (ハイブリッド方式)
+  checkTableId();
 };
+
+// テーブルIDを確認・設定する関数
+function checkTableId() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramTableId = urlParams.get('table');
+
+  // 1. URLにテーブルパラメータがある場合 (QRコードからのアクセス)
+  if (paramTableId) {
+    currentTableId = paramTableId;
+    localStorage.setItem('MO_TABLE_ID', currentTableId);
+    initializeLiff(); // そのまま開始
+  } 
+  // 2. URLにはないが、過去の記憶(LocalStorage)がある場合 (リッチメニューからのアクセス想定)
+  else {
+    const savedTableId = localStorage.getItem('MO_TABLE_ID');
+    if (savedTableId) {
+      currentTableId = savedTableId;
+      initializeLiff(); // そのまま開始
+    } else {
+      // 3. どちらもない場合 -> 入力モーダルを表示
+      // LIFF初期化は入力後に行う
+      tableModal.show();
+    }
+  }
+}
+
+// モーダルで「開始する」を押したときの処理
+function saveTableId() {
+  const inputVal = document.getElementById('input-table-id').value.trim();
+  if (!inputVal) {
+    alert("テーブル番号を入力してください");
+    return;
+  }
+  currentTableId = inputVal;
+  localStorage.setItem('MO_TABLE_ID', currentTableId);
+  
+  tableModal.hide();
+  initializeLiff(); // LIFF開始
+}
+
+// テーブル情報をリセットする関数
+function resetTableId() {
+    if(confirm("テーブル情報をリセットしてトップに戻りますか？")) {
+        localStorage.removeItem('MO_TABLE_ID');
+        location.href = location.pathname; // パラメータなしでリロード
+    }
+}
 
 function initializeLiff() {
   liff.init({ liffId: MY_LIFF_ID })
@@ -274,35 +308,28 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// ▼▼▼ 注文実行処理 (修正版: 即座に画面遷移) ▼▼▼
+// 注文実行処理 (シームレス遷移版)
 function executeOrder() {
-  // 1. まず確認モーダルを閉じる
   confirmModal.hide(); 
   
-  // 2. 通信結果を待たずに、即座にAIモーダルを開く (体感ラグゼロ)
-  //    中身は「送信中」の表示にしておく
   if (!recommendModal) recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
   const textElem = document.getElementById('recommendation-text');
   const loadingElem = document.getElementById('recommendation-loading');
   const itemContainer = document.getElementById('recommendation-item-container');
   const cardArea = document.getElementById('recommendation-card-area');
   
-  // UI初期化（送信中状態）
   recommendModal.show();
   if(textElem) textElem.style.display = 'none';
   if(loadingElem) {
       loadingElem.style.display = 'block';
-      // 文言を「送信中」にする
       const loadingText = loadingElem.querySelector('p');
       if(loadingText) loadingText.innerText = "ご注文を送信しています...";
   }
   if(itemContainer) itemContainer.style.display = 'none';
   if(cardArea) cardArea.innerHTML = "";
 
-  // 注文内容を退避
   const lastOrderedItems = [...cart];
 
-  // 3. 裏で通信開始
   const payload = { 
     accessToken: liff.getAccessToken(), 
     items: cart,
@@ -318,7 +345,6 @@ function executeOrder() {
     let data;
     try { data = JSON.parse(res.text); }
     catch(e) {
-      // 例外的な成功含む
       if(res.text.includes("success") || res.text.includes("注文完了")) {
           handleOrderSuccess(lastOrderedItems);
           return;
@@ -329,7 +355,6 @@ function executeOrder() {
     if(data.status === "success"){
         handleOrderSuccess(lastOrderedItems);
     } else { 
-        // エラー時はモーダルを隠してアラート（またはモーダル内でエラー表示）
         recommendModal.hide();
         throw new Error(data.message); 
     }
@@ -340,26 +365,22 @@ function executeOrder() {
   });
 }
 
-// 注文成功後の処理（ここからAI分析へ移行）
 function handleOrderSuccess(items) {
     shouldReload = true;
     cart = [];
     updateCartUI();
 
-    // モーダル内のローディング文言を「分析中」に切り替え
     const loadingElem = document.getElementById('recommendation-loading');
     if(loadingElem) {
         const loadingText = loadingElem.querySelector('p');
         if(loadingText) loadingText.innerText = "AIソムリエが分析中...";
     }
     
-    // AI取得処理を開始
     startAiAnalysis(items);
 }
 
-// ▼▼▼ 敏腕セールスマンAI (分析実行・表示) ▼▼▼
+// 敏腕セールスマンAI (分析実行・表示)
 function startAiAnalysis(orderedItems) {
-    // 既にモーダルは開いている前提
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
     
@@ -378,7 +399,6 @@ function startAiAnalysis(orderedItems) {
     })
     .then(r => r.json())
     .then(res => {
-        // 分析完了: グルグルを消してテキスト表示
         if(loadingElem) loadingElem.style.display = 'none';
         if(textElem) textElem.style.display = 'block';
 
@@ -406,7 +426,6 @@ function startAiAnalysis(orderedItems) {
     });
 }
 
-// おすすめ商品カードを生成 (スマホ対応版)
 function renderRecommendCard(targetItemName) {
     const itemContainer = document.getElementById('recommendation-item-container');
     const cardArea = document.getElementById('recommendation-card-area');
@@ -446,7 +465,6 @@ function renderRecommendCard(targetItemName) {
     }, 1000); 
 }
 
-// おすすめモーダルからカートに追加し、注文画面へ進む処理
 function addItemFromRecommend(itemId) {
     recommendModal.hide();
     const item = allMenuItems.find(m => String(m.id) === String(itemId));
@@ -469,6 +487,11 @@ function showMessage(title, body) {
 function finishOrderFlow() {
   recommendModal.hide();
   showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
+}
+
+function closeRecommendation() {
+    recommendModal.hide();
+    showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
 
 // 履歴・会計・マイページ系
@@ -630,15 +653,12 @@ function drawChart(dataValues) {
   });
 }
 
-
-// ▼▼▼ 修正版: My Taste用 (JSONパース＆商品提案対応) ▼▼▼
+// My Taste用 (JSONパース＆商品提案対応)
 function fetchAiComment(stats, historyItems) {
-  // ★修正: 正しいIDを取得
   const commentBox = document.getElementById('my-taste-text');
   const recommendContainer = document.getElementById('my-taste-recommendation');
   const cardArea = document.getElementById('my-taste-card-area');
   
-  // 初期化 (ローディング表示)
   if(commentBox) {
     commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span class="small text-primary">マスターがあなたの好みを分析中...</span>';
   }
@@ -657,10 +677,8 @@ function fetchAiComment(stats, historyItems) {
   .then(data => { 
     if (data.status === "success" && commentBox) { 
       try {
-        // GASから来たJSON文字列をパース
         const aiData = JSON.parse(data.message);
 
-        // 1. テキストの整形表示
         let htmlContent = "";
         if(aiData.persona) htmlContent += `<strong>【 ${aiData.persona} 】</strong><br><br>`;
         if(aiData.analysis) htmlContent += `${aiData.analysis.replace(/\n/g, '<br>')}<br><br>`;
@@ -668,13 +686,11 @@ function fetchAiComment(stats, historyItems) {
         
         commentBox.innerHTML = htmlContent;
 
-        // 2. おすすめ商品があればカード表示
         if (aiData.recommendItemName) {
            renderMyTasteCard(aiData.recommendItemName);
         }
 
       } catch (e) {
-        // パース失敗時はそのまま表示
         commentBox.innerText = data.message;
       }
     } else if(commentBox) { 
@@ -687,19 +703,16 @@ function fetchAiComment(stats, historyItems) {
   });
 }
 
-// My Taste用の商品カード生成関数
 function renderMyTasteCard(targetItemName) {
     const recommendContainer = document.getElementById('my-taste-recommendation');
     const cardArea = document.getElementById('my-taste-card-area');
     
-    // 名前で検索（スペース除去して比較）
     const item = allMenuItems.find(m => m.name.replace(/\s+/g, '') === targetItemName.replace(/\s+/g, ''));
 
-    if (!item) return; // 商品が見つからなければ何もしない
+    if (!item) return;
 
     const imgUrl = convertDriveUrl(item.image);
     
-    // スマホ対応カードデザイン
     const html = `
       <div class="card border-0 shadow-sm bg-white" style="overflow:hidden;">
         <div class="d-flex align-items-center p-2">
@@ -724,12 +737,8 @@ function renderMyTasteCard(targetItemName) {
     recommendContainer.classList.add('fade-in-up');
 }
 
-// My Tasteから追加ボタンを押したときの処理
 function addMyTasteItem(itemId) {
-    // 1. マイページモーダルを閉じる
     myPageModal.hide();
-    
-    // 2. カートに追加して注文画面へ（SalesmanAIと同じ導線）
     addItemFromRecommend(itemId);
 }
 
