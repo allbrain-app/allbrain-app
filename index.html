@@ -27,13 +27,12 @@
       </div>
     </div>
     <div class="container-fluid px-3 pb-2">
-      <small id="user-info" class="text-muted" style="font-size: 0.8rem; cursor: pointer;" onclick="resetTableId()">Loading user...</small>
+      <small id="user-info" class="text-muted" style="font-size: 0.8rem; cursor: pointer;" onclick="openResetTableModal()">Loading user...</small>
     </div>
   </nav>
 
   <div class="container-fluid mt-5 pt-5 pb-2 bg-white sticky-top" style="top: 56px; z-index: 1000;">
-    <ul class="nav nav-pills flex-nowrap overflow-auto pb-2" id="category-tabs" style="white-space: nowrap;">
-      </ul>
+    <ul class="nav nav-pills flex-nowrap overflow-auto pb-2" id="category-tabs" style="white-space: nowrap;"></ul>
   </div>
 
   <div class="container-fluid py-3 mb-5" id="menu-list">
@@ -57,21 +56,23 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content text-center p-4">
         <h5 class="fw-bold mb-3">いらっしゃいませ</h5>
-        <p class="text-muted small mb-4">
-          テーブル上のQRコードを読み取るか、<br>
-          テーブル番号を入力してください。
-        </p>
-        
+        <p class="text-muted small mb-4">テーブル番号を入力してください。</p>
         <div class="mb-3">
-          <input type="text" id="input-table-id" class="form-control form-control-lg text-center fw-bold" placeholder="例: 1, A, Counter" style="letter-spacing: 2px;">
+          <input type="text" id="input-table-id" class="form-control form-control-lg text-center fw-bold" placeholder="例: 1, A" style="letter-spacing: 2px;">
         </div>
+        <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="saveTableId()">このテーブルで開始する</button>
+      </div>
+    </div>
+  </div>
 
-        <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="saveTableId()">
-          このテーブルで開始する
-        </button>
-        
-        <div class="mt-3">
-          <small class="text-muted">※QRコードを読み取ると自動入力されます</small>
+  <div class="modal fade" id="resetTableModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center p-4">
+        <h5 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>確認</h5>
+        <p class="text-muted mb-4">テーブル情報をリセットして<br>トップ画面に戻りますか？</p>
+        <div class="d-flex gap-2 justify-content-center">
+          <button type="button" class="btn btn-light w-50 py-2 rounded-pill" data-bs-dismiss="modal">キャンセル</button>
+          <button type="button" class="btn btn-danger w-50 py-2 rounded-pill fw-bold" onclick="executeResetTable()">リセットする</button>
         </div>
       </div>
     </div>
@@ -104,9 +105,7 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content shadow-lg border-0" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
         <div class="modal-header border-0">
-          <h5 class="modal-title text-primary fw-bold">
-            <i class="bi bi-stars me-2"></i>AIソムリエ
-          </h5>
+          <h5 class="modal-title text-primary fw-bold"><i class="bi bi-stars me-2"></i>AIソムリエ</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeRecommendation()"></button>
         </div>
         <div class="modal-body text-center pt-0 pb-4">
@@ -117,22 +116,13 @@
             </div>
             <p class="small text-dark mb-0" id="recommendation-text" style="min-height: 3em; text-align: left; line-height: 1.6;"></p>
           </div>
-
           <div id="recommendation-item-container" style="display:none;">
-            <div class="d-flex align-items-center justify-content-center mb-2">
-              <span class="badge bg-warning text-dark me-2">Best Match</span>
-              <span class="small text-muted">あなたへの一杯</span>
-            </div>
             <div id="recommendation-card-area"></div>
           </div>
         </div>
-
         <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-5" data-bs-dismiss="modal">
-            メニューに戻る
-          </button>
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-5" data-bs-dismiss="modal">メニューに戻る</button>
         </div>
-
       </div>
     </div>
   </div>
@@ -147,6 +137,19 @@
         <div class="modal-body pt-2" id="messageModalBody"></div>
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="checkoutConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center p-4">
+        <h5 class="fw-bold mb-3">お会計を確定しますか？</h5>
+        <p class="text-muted mb-4">店員が精算に伺います。<br>よろしければ確定ボタンを押してください。</p>
+        <div class="d-flex gap-2 justify-content-center">
+          <button type="button" class="btn btn-light w-50 py-2 rounded-pill" data-bs-dismiss="modal">キャンセル</button>
+          <button type="button" class="btn btn-success w-50 py-2 rounded-pill fw-bold" onclick="executeCheckout()">確定する</button>
         </div>
       </div>
     </div>
@@ -176,7 +179,7 @@
                 </div>
               </div>
             </div>
-            <button class="btn btn-success w-100 mt-3 py-3 rounded-pill fw-bold shadow" id="btn-checkout" onclick="confirmCheckout()">
+            <button class="btn btn-success w-100 mt-3 py-3 rounded-pill fw-bold shadow" id="btn-checkout" onclick="openCheckoutModal()">
               お会計を確定する
             </button>
           </div>
@@ -197,19 +200,13 @@
         </div>
         <div class="modal-body text-center">
           <canvas id="tasteChart" style="max-height: 250px;"></canvas>
-          
           <div class="mt-3 p-3 bg-light rounded text-start">
             <small class="text-muted d-block mb-1 fw-bold">AI Sommelier's Note:</small>
             <p id="my-taste-text" class="text-muted small mb-0" style="line-height: 1.6;">
               <span class="spinner-border spinner-border-sm text-secondary" role="status"></span> 分析中...
             </p>
           </div>
-
           <div id="my-taste-recommendation" class="mt-3" style="display:none;">
-            <div class="d-flex align-items-center justify-content-center mb-2">
-              <span class="badge bg-primary me-2">For You</span>
-              <span class="small text-muted">今のあなたへの一杯</span>
-            </div>
             <div id="my-taste-card-area"></div>
           </div>
         </div>
@@ -220,22 +217,12 @@
   <div class="modal fade" id="optionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold" id="optionModalTitle">オプション選択</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
+        <div class="modal-header"><h5 class="modal-title fw-bold" id="optionModalTitle">オプション選択</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
-          <div id="option-container">
-            </div>
-          <div class="d-flex justify-content-end mt-3 fw-bold text-primary">
-            <span id="option-total-price">合計: ¥0</span>
-          </div>
+          <div id="option-container"></div>
+          <div class="d-flex justify-content-end mt-3 fw-bold text-primary"><span id="option-total-price">合計: ¥0</span></div>
         </div>
-        <div class="modal-footer border-0 justify-content-center pb-4">
-          <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow" onclick="confirmOptionAdd()">
-            決定してカートへ
-          </button>
-        </div>
+        <div class="modal-footer border-0 justify-content-center pb-4"><button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow" onclick="confirmOptionAdd()">決定してカートへ</button></div>
       </div>
     </div>
   </div>
