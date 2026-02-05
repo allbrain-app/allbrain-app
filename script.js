@@ -1,13 +1,12 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-// モーダル変数に tableModal を追加
-let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal, tableModal;
+// モーダル変数 (checkoutConfirmModal, resetTableModalを追加)
+let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal, tableModal, checkoutConfirmModal, resetTableModal;
 let tasteChartInstance = null;
 let shouldReload = false;
 let currentTableId = null;
 
-// オプション選択中の一時データ
 let pendingItem = null; 
 
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img";
@@ -15,7 +14,17 @@ const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img"
 // 初期化処理
 window.onload = function() {
   if (typeof MY_LIFF_ID === 'undefined' || typeof GAS_API_URL === 'undefined') {
-    alert("config.js が見つかりません"); return;
+    // alertは使わずconsoleのみ、あるいはbodyにエラー表示などが望ましいが、起動前エラーなので一旦簡易alertのままにするか、ここも変えるならDOM操作が必要。
+    // 今回は稼働後のUX改善が主目的なので、configエラーは開発者向けとして許容、またはshowMessageが使えるなら使う。
+    // まだモーダル初期化前なのでalertのままにする（ユーザーには通常出ないエラー）
+    if(document.getElementById('messageModal')) {
+       // 初期化前でもDOMがあれば
+       messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
+       showMessage("Config Error", "config.js が見つかりません");
+    } else {
+       alert("config.js が見つかりません");
+    }
+    return;
   }
 
   // モーダル初期化
@@ -25,58 +34,56 @@ window.onload = function() {
   historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
   optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
-  // ★追加
   tableModal = new bootstrap.Modal(document.getElementById('tableModal'));
+  // ★追加
+  checkoutConfirmModal = new bootstrap.Modal(document.getElementById('checkoutConfirmModal'));
+  resetTableModal = new bootstrap.Modal(document.getElementById('resetTableModal'));
 
-  // テーブルIDチェック (ハイブリッド方式)
   checkTableId();
 };
 
-// テーブルIDを確認・設定する関数
 function checkTableId() {
   const urlParams = new URLSearchParams(window.location.search);
   const paramTableId = urlParams.get('table');
 
-  // 1. URLにテーブルパラメータがある場合 (QRコードからのアクセス)
   if (paramTableId) {
     currentTableId = paramTableId;
     localStorage.setItem('MO_TABLE_ID', currentTableId);
-    initializeLiff(); // そのまま開始
-  } 
-  // 2. URLにはないが、過去の記憶(LocalStorage)がある場合 (リッチメニューからのアクセス想定)
-  else {
+    initializeLiff(); 
+  } else {
     const savedTableId = localStorage.getItem('MO_TABLE_ID');
     if (savedTableId) {
       currentTableId = savedTableId;
-      initializeLiff(); // そのまま開始
+      initializeLiff(); 
     } else {
-      // 3. どちらもない場合 -> 入力モーダルを表示
-      // LIFF初期化は入力後に行う
       tableModal.show();
     }
   }
 }
 
-// モーダルで「開始する」を押したときの処理
 function saveTableId() {
   const inputVal = document.getElementById('input-table-id').value.trim();
   if (!inputVal) {
-    alert("テーブル番号を入力してください");
+    // alertの代わりに
+    document.getElementById('input-table-id').classList.add('is-invalid');
     return;
   }
   currentTableId = inputVal;
   localStorage.setItem('MO_TABLE_ID', currentTableId);
   
   tableModal.hide();
-  initializeLiff(); // LIFF開始
+  initializeLiff(); 
 }
 
-// テーブル情報をリセットする関数
-function resetTableId() {
-    if(confirm("テーブル情報をリセットしてトップに戻りますか？")) {
-        localStorage.removeItem('MO_TABLE_ID');
-        location.href = location.pathname; // パラメータなしでリロード
-    }
+// ★修正: リセット確認モーダルを開く
+function openResetTableModal() {
+    resetTableModal.show();
+}
+
+// ★新規: 実際にリセットを実行
+function executeResetTable() {
+    localStorage.removeItem('MO_TABLE_ID');
+    location.href = location.pathname; 
 }
 
 function initializeLiff() {
@@ -166,7 +173,6 @@ function convertDriveUrl(url) {
   return url;
 }
 
-// カート追加 (オプション対応)
 function addToCart(id) {
   const item = allMenuItems.find(m => String(m.id) === String(id));
   if (!item) return;
@@ -179,7 +185,6 @@ function addToCart(id) {
   }
 }
 
-// オプション関連ロジック
 function openOptionModal(item) {
   if (!optionModal) optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
    
@@ -308,7 +313,6 @@ function removeFromCart(index) {
   if(cart.length === 0) confirmModal.hide();
 }
 
-// 注文実行処理 (シームレス遷移版)
 function executeOrder() {
   confirmModal.hide(); 
   
@@ -356,7 +360,8 @@ function executeOrder() {
         handleOrderSuccess(lastOrderedItems);
     } else { 
         recommendModal.hide();
-        throw new Error(data.message); 
+        // alertの代わりに
+        showMessage("Error", data.message);
     }
   })
   .catch(err => {
@@ -379,7 +384,6 @@ function handleOrderSuccess(items) {
     startAiAnalysis(items);
 }
 
-// 敏腕セールスマンAI (分析実行・表示)
 function startAiAnalysis(orderedItems) {
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
@@ -494,7 +498,6 @@ function closeRecommendation() {
     showMessage("Thanks!", "ご注文ありがとうございました。<br>料理の到着をお待ちください。");
 }
 
-// 履歴・会計・マイページ系
 function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   historyModal.show();
@@ -565,8 +568,16 @@ function toggleAccordion(id) {
   if (el.style.display === "block") el.style.display = "none";
   else el.style.display = "block";
 }
-function confirmCheckout() {
-  if (!confirm("お会計を確定しますか？\n店員が精算に伺います。")) return;
+
+// ★修正: confirmではなくモーダルを表示
+function openCheckoutModal() {
+    checkoutConfirmModal.show();
+}
+
+// ★新規: 実際の会計確定処理
+function executeCheckout() {
+  checkoutConfirmModal.hide(); // モーダルを閉じる
+
   const btn = document.getElementById('btn-checkout');
   btn.disabled = true; btn.innerText = "送信中...";
   const payload = { action: "checkout", accessToken: liff.getAccessToken() };
@@ -574,12 +585,25 @@ function confirmCheckout() {
   .then(res => res.json())
   .then(data => {
     if (data.status === "success") {
-      alert("店員をお呼びしました。\nそのままお席でお待ちください。");
-      historyModal.hide(); setTimeout(() => location.reload(), 500);
-    } else { alert("エラー: " + data.message); btn.disabled = false; btn.innerText = "お会計を確定する"; }
+      // alertの代わりに
+      showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。");
+      
+      // メッセージを閉じた後にリロードなどが必要なら、showMessageのCloseボタンイベント等で制御するか、
+      // ここではシンプルに少し待ってリロード
+      historyModal.hide(); 
+      setTimeout(() => location.reload(), 2000);
+
+    } else { 
+        showMessage("Error", "エラー: " + data.message); 
+        btn.disabled = false; btn.innerText = "お会計を確定する"; 
+    }
   })
-  .catch(err => { alert("通信エラー"); btn.disabled = false; btn.innerText = "お会計を確定する"; });
+  .catch(err => { 
+      showMessage("Error", "通信エラー"); 
+      btn.disabled = false; btn.innerText = "お会計を確定する"; 
+  });
 }
+
 function openMyPageModal() {
   if (!myPageModal) myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
   myPageModal.show();
@@ -603,54 +627,6 @@ function calculateAndDraw(itemNames) {
   const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
   drawChart(dataValues);
   fetchAiComment(stats, itemNames);
-}
-
-// 統計データ計算
-function calculateStats(itemNames) {
-  let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
-  let count = 0;
-  if(!itemNames) itemNames = [];
-
-  itemNames.forEach(name => {
-    const baseName = name.split(' (')[0]; 
-    const masterItem = allMenuItems.find(m => m.name === baseName);
-    if (masterItem && masterItem.params) {
-      stats.salty += masterItem.params.salty;
-      stats.sweet += masterItem.params.sweet;
-      stats.sour += masterItem.params.sour;
-      stats.bitter += masterItem.params.bitter;
-      stats.rich += masterItem.params.rich;
-      count++;
-    }
-  });
-
-  if (count === 0) return { salty:0, sweet:0, sour:0, bitter:0, rich:0 };
-
-  return {
-    salty: Number((stats.salty / count).toFixed(1)),
-    sweet: Number((stats.sweet / count).toFixed(1)),
-    sour:  Number((stats.sour / count).toFixed(1)),
-    bitter: Number((stats.bitter / count).toFixed(1)),
-    rich:  Number((stats.rich / count).toFixed(1))
-  };
-}
-
-function drawChart(dataValues) {
-  const ctx = document.getElementById('tasteChart').getContext('2d');
-  if (tasteChartInstance) tasteChartInstance.destroy();
-  const colorPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff9800';
-  
-  tasteChartInstance = new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels: ['塩味', '甘味', '酸味', '苦味', 'コク'],
-      datasets: [{ label: '好み傾向', data: dataValues, backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: colorPrimary, pointBackgroundColor: colorPrimary, borderWidth: 2 }]
-    },
-    options: {
-      scales: { r: { angleLines: { color: '#ddd' }, grid: { color: '#ddd' }, pointLabels: { color: '#666', font: {size: 12} }, ticks: { display: false, max: 5, min: 0 } } },
-      plugins: { legend: { display: false } }
-    }
-  });
 }
 
 // My Taste用 (JSONパース＆商品提案対応)
