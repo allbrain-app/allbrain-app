@@ -53,6 +53,32 @@
     </button>
   </div>
 
+
+
+  <div class="modal fade" id="tableModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center p-4">
+        <h5 class="fw-bold mb-3">いらっしゃいませ</h5>
+        <p class="text-muted small mb-4">
+          テーブル上のQRコードを読み取るか、<br>
+          テーブル番号を入力してください。
+        </p>
+        
+        <div class="mb-3">
+          <input type="text" id="input-table-id" class="form-control form-control-lg text-center fw-bold" placeholder="例: 1, A, Counter" style="letter-spacing: 2px;">
+        </div>
+
+        <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="saveTableId()">
+          このテーブルで開始する
+        </button>
+        
+        <div class="mt-3">
+          <small class="text-muted">※QRコードを読み取ると自動入力されます</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
