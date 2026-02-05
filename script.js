@@ -631,35 +631,106 @@ function drawChart(dataValues) {
 }
 
 
-// ▼▼▼ 修正版: My Taste用 (分析AIを呼び出す) ▼▼▼
+// ▼▼▼ 修正版: My Taste用 (JSONパース＆商品提案対応) ▼▼▼
 function fetchAiComment(stats, historyItems) {
-  const commentBox = document.querySelector('#myPageModal .text-muted');
+  // ★修正: 正しいIDを取得
+  const commentBox = document.getElementById('my-taste-text');
+  const recommendContainer = document.getElementById('my-taste-recommendation');
+  const cardArea = document.getElementById('my-taste-card-area');
   
-  // ローディング表示
-  if(commentBox) commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span class="small text-primary">マスターがあなたの好みを分析中...</span>';
+  // 初期化 (ローディング表示)
+  if(commentBox) {
+    commentBox.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span class="small text-primary">マスターがあなたの好みを分析中...</span>';
+  }
+  if(recommendContainer) recommendContainer.style.display = 'none';
+  if(cardArea) cardArea.innerHTML = "";
   
   if (historyItems.length === 0) { 
     if(commentBox) commentBox.innerText = "まだデータがありません。注文履歴が増えると、AIがあなたの好みを分析します！"; 
     return; 
   }
 
-  // ★変更点: actionを "getTasteAnalysis" に変更
   const payload = { action: "getTasteAnalysis", stats: stats, history: historyItems };
 
   fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
   .then(data => { 
     if (data.status === "success" && commentBox) { 
-      // ★変更点: JSONパース不要。そのまま表示する
-      // (改行コードを <br> に変換して見やすくする)
-      commentBox.innerHTML = data.message.replace(/\n/g, '<br>');
+      try {
+        // GASから来たJSON文字列をパース
+        const aiData = JSON.parse(data.message);
+
+        // 1. テキストの整形表示
+        let htmlContent = "";
+        if(aiData.persona) htmlContent += `<strong>【 ${aiData.persona} 】</strong><br><br>`;
+        if(aiData.analysis) htmlContent += `${aiData.analysis.replace(/\n/g, '<br>')}<br><br>`;
+        if(aiData.advice) htmlContent += `<em>✨ ${aiData.advice}</em>`;
+        
+        commentBox.innerHTML = htmlContent;
+
+        // 2. おすすめ商品があればカード表示
+        if (aiData.recommendItemName) {
+           renderMyTasteCard(aiData.recommendItemName);
+        }
+
+      } catch (e) {
+        // パース失敗時はそのまま表示
+        commentBox.innerText = data.message;
+      }
     } else if(commentBox) { 
       commentBox.innerText = "コメントの取得に失敗しました。"; 
     } 
   })
   .catch(err => { 
+    console.error(err);
     if(commentBox) commentBox.innerText = "通信エラーが発生しました。"; 
   });
+}
+
+// My Taste用の商品カード生成関数
+function renderMyTasteCard(targetItemName) {
+    const recommendContainer = document.getElementById('my-taste-recommendation');
+    const cardArea = document.getElementById('my-taste-card-area');
+    
+    // 名前で検索（スペース除去して比較）
+    const item = allMenuItems.find(m => m.name.replace(/\s+/g, '') === targetItemName.replace(/\s+/g, ''));
+
+    if (!item) return; // 商品が見つからなければ何もしない
+
+    const imgUrl = convertDriveUrl(item.image);
+    
+    // スマホ対応カードデザイン
+    const html = `
+      <div class="card border-0 shadow-sm bg-white" style="overflow:hidden;">
+        <div class="d-flex align-items-center p-2">
+          <div class="flex-shrink-0">
+            <img src="${imgUrl}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;" onerror="this.src='${PLACEHOLDER_IMG}'">
+          </div>
+          <div class="ms-3 flex-grow-1 text-start" style="min-width: 0;">
+            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">${item.name}</div>
+            <div class="text-primary fw-bold small">¥${item.price}</div>
+          </div>
+          <div class="ms-2 flex-shrink-0">
+            <button class="btn btn-sm btn-primary px-3 rounded-pill" style="font-size: 0.8rem; white-space: nowrap;" onclick="addMyTasteItem('${item.id}')">
+              追加
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    cardArea.innerHTML = html;
+    recommendContainer.style.display = 'block';
+    recommendContainer.classList.add('fade-in-up');
+}
+
+// My Tasteから追加ボタンを押したときの処理
+function addMyTasteItem(itemId) {
+    // 1. マイページモーダルを閉じる
+    myPageModal.hide();
+    
+    // 2. カートに追加して注文画面へ（SalesmanAIと同じ導線）
+    addItemFromRecommend(itemId);
 }
 
 function typeWriter(element, text) {
