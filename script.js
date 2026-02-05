@@ -7,8 +7,12 @@ let shouldReload = false;
 let currentTableId = null;
 
 let pendingItem = null; 
-
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img";
+
+// ★高速化用キャッシュ変数
+let historyCache = null; // 履歴データの一時保存
+let myTasteCache = null; // MyTaste分析結果の一時保存
+let isHistoryLoading = false; // 重複ロード防止
 
 // 初期化処理
 window.onload = function() {
@@ -85,11 +89,32 @@ function initializeLiff() {
       } else {
         liff.getProfile().then(p => {
           document.getElementById('user-info').innerText = `Table: ${currentTableId} / Guest: ${p.displayName}`;
+          
+          // ★高速化: ログイン完了と同時に、裏で履歴を読み込んでおく
+          preloadHistoryData(p.userId);
         });
         fetchMenu(); 
       }
     })
     .catch(err => showMessage("Error", "LIFF Init failed: " + err.message));
+}
+
+// ★新規: 裏で履歴を読み込む関数
+function preloadHistoryData(userId) {
+    if (isHistoryLoading) return;
+    isHistoryLoading = true;
+    const url = `${GAS_API_URL}?action=getHistory&userId=${userId}`;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+          historyCache = data; // キャッシュに保存
+          isHistoryLoading = false;
+          console.log("History preloaded.");
+      })
+      .catch(err => {
+          console.error("Preload error", err);
+          isHistoryLoading = false;
+      });
 }
 
 function fetchMenu() {
@@ -365,6 +390,13 @@ function handleOrderSuccess(items) {
     cart = [];
     updateCartUI();
 
+    // ★重要: 注文したのでキャッシュをクリアして、最新を読み直すフラグを立てる
+    historyCache = null; 
+    myTasteCache = null;
+    
+    // 裏で履歴を再取得しておく（次のために）
+    liff.getProfile().then(p => { preloadHistoryData(p.userId); });
+
     const loadingElem = document.getElementById('recommendation-loading');
     if(loadingElem) {
         const loadingText = loadingElem.querySelector('p');
@@ -374,13 +406,11 @@ function handleOrderSuccess(items) {
     startAiAnalysis(items);
 }
 
-// ★修正: calculateStatsのタイプミスを修正
 function startAiAnalysis(orderedItems) {
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
     
     const itemNames = orderedItems.map(i => i.name);
-    // 修正: calculateState -> calculateStats
     const currentStats = calculateStats(itemNames);
     
     const payload = { 
@@ -493,30 +523,51 @@ function closeRecommendation() {
 function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   historyModal.show();
-  fetchHistoryData();
+  
+  // ★高速化: キャッシュがあれば即表示
+  if (historyCache) {
+      renderHistory(historyCache);
+  } else {
+      fetchHistoryData();
+  }
 }
+
 function switchHistoryTab(tabName) {
   document.querySelectorAll('#history-tabs .nav-link').forEach(btn => btn.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('tab-current').style.display = (tabName === 'current') ? 'block' : 'none';
   document.getElementById('tab-past').style.display = (tabName === 'past') ? 'block' : 'none';
 }
+
 function fetchHistoryData() {
   const currentContainer = document.getElementById('current-order-list');
-  const pastContainer = document.getElementById('past-order-container');
   currentContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-secondary"></div></div>';
-  if (!liff.isLoggedIn()) { currentContainer.innerHTML = '<div class="text-center text-danger">ログインが必要です</div>'; return; }
+  
+  if (!liff.isLoggedIn()) { 
+      currentContainer.innerHTML = '<div class="text-center text-danger">ログインが必要です</div>'; 
+      return; 
+  }
+  
   liff.getProfile().then(profile => {
+    // 既にロード中なら待つ（簡易実装として再度リクエスト）
     const url = `${GAS_API_URL}?action=getHistory&userId=${profile.userId}`;
-    fetch(url).then(res => res.json()).then(data => { renderHistory(data); }).catch(err => {
+    fetch(url)
+      .then(res => res.json())
+      .then(data => { 
+          historyCache = data; // キャッシュ更新
+          renderHistory(data); 
+      })
+      .catch(err => {
         currentContainer.innerHTML = `<div class="text-danger text-center">エラー: ${err.message}</div>`;
       });
   });
 }
+
 function renderHistory(data) {
   const currentContainer = document.getElementById('current-order-list');
   const totalDisplay = document.getElementById('current-total-price');
   const checkoutBtn = document.getElementById('btn-checkout');
+  
   if (data.current.length === 0) {
     currentContainer.innerHTML = '<div class="text-center text-secondary py-3">現在のご注文はありません</div>';
     totalDisplay.innerText = "¥0";
@@ -555,29 +606,27 @@ function renderHistory(data) {
     pastContainer.innerHTML = html;
   }
 }
+
 function toggleAccordion(id) {
   const el = document.getElementById(id);
   if (el.style.display === "block") el.style.display = "none";
   else el.style.display = "block";
 }
 
-// ★修正: 開くときに裏の履歴画面を閉じる (入れ替え)
 function openCheckoutModal() {
-    historyModal.hide(); // 履歴画面を消す
-    checkoutConfirmModal.show(); // 確認画面を出す
+    historyModal.hide(); 
+    checkoutConfirmModal.show(); 
 }
 
-// ★新規: キャンセル時は履歴画面に戻る (入れ替え)
 function cancelCheckout() {
-    checkoutConfirmModal.hide(); // 確認画面を消す
-    historyModal.show(); // 履歴画面を戻す
+    checkoutConfirmModal.hide(); 
+    historyModal.show(); 
 }
 
 function executeCheckout() {
   checkoutConfirmModal.hide();
 
   const btn = document.getElementById('btn-checkout');
-  // 履歴画面が閉じているのでボタン操作は不要だが、万が一のために
   if(btn) { btn.disabled = true; btn.innerText = "送信中..."; }
   
   const payload = { action: "checkout", accessToken: liff.getAccessToken() };
@@ -585,10 +634,10 @@ function executeCheckout() {
   .then(res => res.json())
   .then(data => {
     if (data.status === "success") {
+      historyCache = null; // 会計したのでキャッシュクリア
       showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。");
       setTimeout(() => location.reload(), 2000);
     } else { 
-        // エラー時は履歴画面を戻してからエラー表示
         historyModal.show();
         setTimeout(() => showMessage("Error", "エラー: " + data.message), 500);
         if(btn) { btn.disabled = false; btn.innerText = "お会計を確定する"; }
@@ -606,27 +655,79 @@ function openMyPageModal() {
   myPageModal.show();
   loadAndRenderChart();
 }
+
 function loadAndRenderChart() {
   if (!liff.isLoggedIn()) { alert("ログインが必要です"); return; }
+  
+  // ★高速化: MyTasteのデータは重いので、キャッシュがあればAI通信をスキップ
+  // ただし、注文履歴が増えていないか確認するために履歴データは必要
+  // ここではシンプルに「キャッシュがあればそれを使う」
+  if (myTasteCache) {
+      renderMyTasteFromCache(myTasteCache);
+      return;
+  }
+
+  // なければロード
   liff.getProfile().then(profile => {
-    fetch(`${GAS_API_URL}?action=getHistory&userId=${profile.userId}`)
-      .then(res => res.json())
-      .then(historyData => {
-        const allItems = [];
-        historyData.current.forEach(item => allItems.push(item.name));
-        historyData.past.forEach(order => { order.items.forEach(i => allItems.push(i.name)); });
+    // 履歴を取得（キャッシュがあれば速い）
+    if(historyCache) {
+        const allItems = extractAllItems(historyCache);
         calculateAndDraw(allItems);
-      });
+    } else {
+        fetch(`${GAS_API_URL}?action=getHistory&userId=${profile.userId}`)
+          .then(res => res.json())
+          .then(historyData => {
+            historyCache = historyData; // ついでに保存
+            const allItems = extractAllItems(historyData);
+            calculateAndDraw(allItems);
+          });
+    }
   });
 }
+
+// 履歴データから全アイテム名を抽出
+function extractAllItems(historyData) {
+    const allItems = [];
+    historyData.current.forEach(item => allItems.push(item.name));
+    historyData.past.forEach(order => { order.items.forEach(i => allItems.push(i.name)); });
+    return allItems;
+}
+
+// キャッシュからMyTasteを描画
+function renderMyTasteFromCache(data) {
+    // チャート用データ復元
+    const allItems = extractAllItems(historyCache || {current:[], past:[]}); 
+    const stats = calculateStats(allItems);
+    const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
+    drawChart(dataValues);
+
+    // AIテキスト復元
+    const commentBox = document.getElementById('my-taste-text');
+    const recommendContainer = document.getElementById('my-taste-recommendation');
+    const cardArea = document.getElementById('my-taste-card-area');
+
+    if (data.aiData) {
+        const aiData = data.aiData;
+        let htmlContent = "";
+        if(aiData.persona) htmlContent += `<strong>【 ${aiData.persona} 】</strong><br><br>`;
+        if(aiData.analysis) htmlContent += `${aiData.analysis.replace(/\n/g, '<br>')}<br><br>`;
+        if(aiData.advice) htmlContent += `<em>✨ ${aiData.advice}</em>`;
+        commentBox.innerHTML = htmlContent;
+
+        if (aiData.recommendItemName) {
+           renderMyTasteCard(aiData.recommendItemName);
+        }
+    }
+}
+
 function calculateAndDraw(itemNames) {
   const stats = calculateStats(itemNames); 
   const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
   drawChart(dataValues);
+  // AIコメント取得
   fetchAiComment(stats, itemNames);
 }
 
-// 統計データ計算
 function calculateStats(itemNames) {
   let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
   let count = 0;
@@ -698,6 +799,9 @@ function fetchAiComment(stats, historyItems) {
     if (data.status === "success" && commentBox) { 
       try {
         const aiData = JSON.parse(data.message);
+        
+        // ★高速化: 結果をキャッシュに保存
+        myTasteCache = { aiData: aiData };
 
         let htmlContent = "";
         if(aiData.persona) htmlContent += `<strong>【 ${aiData.persona} 】</strong><br><br>`;
