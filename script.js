@@ -1,7 +1,6 @@
 let cart = [];
 let allMenuItems = [];
 let currentCategory = 'ALL';
-// モーダル変数 (checkoutConfirmModal, resetTableModalを追加)
 let confirmModal, messageModal, recommendModal, historyModal, myPageModal, optionModal, tableModal, checkoutConfirmModal, resetTableModal;
 let tasteChartInstance = null;
 let shouldReload = false;
@@ -14,11 +13,7 @@ const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img"
 // 初期化処理
 window.onload = function() {
   if (typeof MY_LIFF_ID === 'undefined' || typeof GAS_API_URL === 'undefined') {
-    // alertは使わずconsoleのみ、あるいはbodyにエラー表示などが望ましいが、起動前エラーなので一旦簡易alertのままにするか、ここも変えるならDOM操作が必要。
-    // 今回は稼働後のUX改善が主目的なので、configエラーは開発者向けとして許容、またはshowMessageが使えるなら使う。
-    // まだモーダル初期化前なのでalertのままにする（ユーザーには通常出ないエラー）
     if(document.getElementById('messageModal')) {
-       // 初期化前でもDOMがあれば
        messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
        showMessage("Config Error", "config.js が見つかりません");
     } else {
@@ -35,7 +30,6 @@ window.onload = function() {
   myPageModal = new bootstrap.Modal(document.getElementById('myPageModal'));
   optionModal = new bootstrap.Modal(document.getElementById('optionModal'));
   tableModal = new bootstrap.Modal(document.getElementById('tableModal'));
-  // ★追加
   checkoutConfirmModal = new bootstrap.Modal(document.getElementById('checkoutConfirmModal'));
   resetTableModal = new bootstrap.Modal(document.getElementById('resetTableModal'));
 
@@ -64,7 +58,6 @@ function checkTableId() {
 function saveTableId() {
   const inputVal = document.getElementById('input-table-id').value.trim();
   if (!inputVal) {
-    // alertの代わりに
     document.getElementById('input-table-id').classList.add('is-invalid');
     return;
   }
@@ -75,12 +68,10 @@ function saveTableId() {
   initializeLiff(); 
 }
 
-// ★修正: リセット確認モーダルを開く
 function openResetTableModal() {
     resetTableModal.show();
 }
 
-// ★新規: 実際にリセットを実行
 function executeResetTable() {
     localStorage.removeItem('MO_TABLE_ID');
     location.href = location.pathname; 
@@ -360,7 +351,6 @@ function executeOrder() {
         handleOrderSuccess(lastOrderedItems);
     } else { 
         recommendModal.hide();
-        // alertの代わりに
         showMessage("Error", data.message);
     }
   })
@@ -384,11 +374,13 @@ function handleOrderSuccess(items) {
     startAiAnalysis(items);
 }
 
+// ★修正: calculateStatsのタイプミスを修正
 function startAiAnalysis(orderedItems) {
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
     
     const itemNames = orderedItems.map(i => i.name);
+    // 修正: calculateState -> calculateStats
     const currentStats = calculateStats(itemNames);
     
     const payload = { 
@@ -569,38 +561,43 @@ function toggleAccordion(id) {
   else el.style.display = "block";
 }
 
-// ★修正: confirmではなくモーダルを表示
+// ★修正: 開くときに裏の履歴画面を閉じる (入れ替え)
 function openCheckoutModal() {
-    checkoutConfirmModal.show();
+    historyModal.hide(); // 履歴画面を消す
+    checkoutConfirmModal.show(); // 確認画面を出す
 }
 
-// ★新規: 実際の会計確定処理
+// ★新規: キャンセル時は履歴画面に戻る (入れ替え)
+function cancelCheckout() {
+    checkoutConfirmModal.hide(); // 確認画面を消す
+    historyModal.show(); // 履歴画面を戻す
+}
+
 function executeCheckout() {
-  checkoutConfirmModal.hide(); // モーダルを閉じる
+  checkoutConfirmModal.hide();
 
   const btn = document.getElementById('btn-checkout');
-  btn.disabled = true; btn.innerText = "送信中...";
+  // 履歴画面が閉じているのでボタン操作は不要だが、万が一のために
+  if(btn) { btn.disabled = true; btn.innerText = "送信中..."; }
+  
   const payload = { action: "checkout", accessToken: liff.getAccessToken() };
   fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
   .then(data => {
     if (data.status === "success") {
-      // alertの代わりに
       showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。");
-      
-      // メッセージを閉じた後にリロードなどが必要なら、showMessageのCloseボタンイベント等で制御するか、
-      // ここではシンプルに少し待ってリロード
-      historyModal.hide(); 
       setTimeout(() => location.reload(), 2000);
-
     } else { 
-        showMessage("Error", "エラー: " + data.message); 
-        btn.disabled = false; btn.innerText = "お会計を確定する"; 
+        // エラー時は履歴画面を戻してからエラー表示
+        historyModal.show();
+        setTimeout(() => showMessage("Error", "エラー: " + data.message), 500);
+        if(btn) { btn.disabled = false; btn.innerText = "お会計を確定する"; }
     }
   })
   .catch(err => { 
-      showMessage("Error", "通信エラー"); 
-      btn.disabled = false; btn.innerText = "お会計を確定する"; 
+      historyModal.show();
+      setTimeout(() => showMessage("Error", "通信エラー"), 500);
+      if(btn) { btn.disabled = false; btn.innerText = "お会計を確定する"; }
   });
 }
 
@@ -629,7 +626,54 @@ function calculateAndDraw(itemNames) {
   fetchAiComment(stats, itemNames);
 }
 
-// My Taste用 (JSONパース＆商品提案対応)
+// 統計データ計算
+function calculateStats(itemNames) {
+  let stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
+  let count = 0;
+  if(!itemNames) itemNames = [];
+
+  itemNames.forEach(name => {
+    const baseName = name.split(' (')[0]; 
+    const masterItem = allMenuItems.find(m => m.name === baseName);
+    if (masterItem && masterItem.params) {
+      stats.salty += masterItem.params.salty;
+      stats.sweet += masterItem.params.sweet;
+      stats.sour += masterItem.params.sour;
+      stats.bitter += masterItem.params.bitter;
+      stats.rich += masterItem.params.rich;
+      count++;
+    }
+  });
+
+  if (count === 0) return { salty:0, sweet:0, sour:0, bitter:0, rich:0 };
+
+  return {
+    salty: Number((stats.salty / count).toFixed(1)),
+    sweet: Number((stats.sweet / count).toFixed(1)),
+    sour:  Number((stats.sour / count).toFixed(1)),
+    bitter: Number((stats.bitter / count).toFixed(1)),
+    rich:  Number((stats.rich / count).toFixed(1))
+  };
+}
+
+function drawChart(dataValues) {
+  const ctx = document.getElementById('tasteChart').getContext('2d');
+  if (tasteChartInstance) tasteChartInstance.destroy();
+  const colorPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#ff9800';
+  
+  tasteChartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['塩味', '甘味', '酸味', '苦味', 'コク'],
+      datasets: [{ label: '好み傾向', data: dataValues, backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: colorPrimary, pointBackgroundColor: colorPrimary, borderWidth: 2 }]
+    },
+    options: {
+      scales: { r: { angleLines: { color: '#ddd' }, grid: { color: '#ddd' }, pointLabels: { color: '#666', font: {size: 12} }, ticks: { display: false, max: 5, min: 0 } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
 function fetchAiComment(stats, historyItems) {
   const commentBox = document.getElementById('my-taste-text');
   const recommendContainer = document.getElementById('my-taste-recommendation');
