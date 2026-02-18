@@ -45,6 +45,8 @@ function initializeLiff() {
 
 function fetchInitData(userId, displayName) {
   var url = GAS_API_URL + "?action=getInitData&userId=" + encodeURIComponent(userId);
+  console.log("fetchInitData URL:", url);
+  console.log("GAS_API_URL:", GAS_API_URL);
   fetch(url)
     .then(function (r) { return r.json(); })
     .then(function (d) {
