@@ -953,105 +953,241 @@ function showGreetingToast(name, profile) {
 }
 
 // ==============================
-// Step4: My Taste シェア機能
+// Step4: Instagram シェア画像生成
 // ==============================
-function shareMyTaste() {
-  if (!liff.isLoggedIn()) { alert("ログインが必要です"); return; }
+var shareImageModal = null;
 
-  // チャートからデータ取得
-  var persona = "";
-  var commentBox = document.getElementById('my-taste-text');
-  if (commentBox) {
-    var strongTag = commentBox.querySelector('strong');
-    if (strongTag) persona = strongTag.innerText;
+function generateTasteImage() {
+  if (!shareImageModal) {
+    shareImageModal = new bootstrap.Modal(document.getElementById('shareImageModal'));
   }
 
-  // 味覚データ取得
+  var canvas = document.createElement('canvas');
+  var W = 1080;
+  var H = 1920;
+  canvas.width = W;
+  canvas.height = H;
+  var ctx = canvas.getContext('2d');
+
+  // --- 背景 ---
+  var bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1a1a2e');
+  bg.addColorStop(0.5, '#16213e');
+  bg.addColorStop(1, '#0f3460');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // --- 装飾: 円のグロー ---
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.beginPath();
+  ctx.arc(W * 0.2, H * 0.15, 300, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff9800';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(W * 0.8, H * 0.7, 250, 0, Math.PI * 2);
+  ctx.fillStyle = '#03dac6';
+  ctx.fill();
+  ctx.restore();
+
+  // --- 店名ヘッダー ---
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 42px "Helvetica Neue", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('☕ 茶飯事Bar', W / 2, 120);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '28px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillText('AI Sommelier - My Taste Analysis', W / 2, 170);
+
+  // --- レーダーチャート ---
   var stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
   if (tasteChartInstance && tasteChartInstance.data && tasteChartInstance.data.datasets[0]) {
     var d = tasteChartInstance.data.datasets[0].data;
     stats = { salty: d[0], sweet: d[1], sour: d[2], bitter: d[3], rich: d[4] };
   }
 
-  // バー表示用テキスト生成
-  var barSalty  = makeBar(stats.salty);
-  var barSweet  = makeBar(stats.sweet);
-  var barSour   = makeBar(stats.sour);
-  var barBitter = makeBar(stats.bitter);
-  var barRich   = makeBar(stats.rich);
+  var cx = W / 2;
+  var cy = 520;
+  var maxR = 200;
+  var labels = ['塩味', '甘味', '酸味', '苦味', 'コク'];
+  var values = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
+  var angleStep = (Math.PI * 2) / 5;
+  var startAngle = -Math.PI / 2;
 
-  var title = persona || "My Taste 診断結果";
-  var body = "塩味 " + barSalty + "\n"
-    + "甘味 " + barSweet + "\n"
-    + "酸味 " + barSour + "\n"
-    + "苦味 " + barBitter + "\n"
-    + "コク " + barRich;
+  // グリッド線
+  for (var level = 1; level <= 5; level++) {
+    var r = maxR * (level / 5);
+    ctx.beginPath();
+    for (var j = 0; j < 5; j++) {
+      var a = startAngle + angleStep * j;
+      var gx = cx + r * Math.cos(a);
+      var gy = cy + r * Math.sin(a);
+      if (j === 0) ctx.moveTo(gx, gy);
+      else ctx.lineTo(gx, gy);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 
-  var liffUrl = "https://liff.line.me/" + MY_LIFF_ID;
+  // 軸線
+  for (var k = 0; k < 5; k++) {
+    var a2 = startAngle + angleStep * k;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + maxR * Math.cos(a2), cy + maxR * Math.sin(a2));
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 
-  liff.shareTargetPicker([
-    {
-      type: "flex",
-      altText: title,
-      contents: {
-        type: "bubble",
-        size: "kilo",
-        header: {
-          type: "box",
-          layout: "vertical",
-          backgroundColor: "#FF9800",
-          paddingAll: "15px",
-          contents: [
-            { type: "text", text: "My Taste", color: "#ffffff", size: "sm", weight: "bold" },
-            { type: "text", text: title, color: "#ffffff", size: "lg", weight: "bold", wrap: true }
-          ]
-        },
-        body: {
-          type: "box",
-          layout: "vertical",
-          paddingAll: "15px",
-          spacing: "sm",
-          contents: [
-            { type: "text", text: body, size: "sm", wrap: true, color: "#555555" },
-            { type: "separator", margin: "lg" },
-            { type: "text", text: "AIソムリエがあなたの味覚を分析！", size: "xs", color: "#999999", margin: "md", align: "center" }
-          ]
-        },
-        footer: {
-          type: "box",
-          layout: "vertical",
-          paddingAll: "10px",
-          contents: [
-            {
-              type: "button",
-              style: "primary",
-              color: "#FF9800",
-              action: { type: "uri", label: "自分も診断してみる", uri: liffUrl }
-            }
-          ]
-        }
+  // データ塗り
+  ctx.beginPath();
+  for (var m = 0; m < 5; m++) {
+    var a3 = startAngle + angleStep * m;
+    var val = Math.min(values[m], 5);
+    var dr = maxR * (val / 5);
+    var px = cx + dr * Math.cos(a3);
+    var py = cy + dr * Math.sin(a3);
+    if (m === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255, 152, 0, 0.35)';
+  ctx.fill();
+  ctx.strokeStyle = '#ff9800';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // データ点
+  for (var n = 0; n < 5; n++) {
+    var a4 = startAngle + angleStep * n;
+    var val2 = Math.min(values[n], 5);
+    var dr2 = maxR * (val2 / 5);
+    var dotX = cx + dr2 * Math.cos(a4);
+    var dotY = cy + dr2 * Math.sin(a4);
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff9800';
+    ctx.fill();
+  }
+
+  // ラベル
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 32px "Helvetica Neue", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  for (var p = 0; p < 5; p++) {
+    var a5 = startAngle + angleStep * p;
+    var lx = cx + (maxR + 50) * Math.cos(a5);
+    var ly = cy + (maxR + 50) * Math.sin(a5);
+    ctx.fillText(labels[p], lx, ly + 10);
+  }
+
+  // --- 称号 & コメント ---
+  var persona = '';
+  var comment = '';
+  var commentBox = document.getElementById('my-taste-text');
+
+  if (commentBox) {
+    var strongTag = commentBox.querySelector('strong');
+    if (strongTag) persona = strongTag.innerText.replace(/【|】/g, '');
+
+    var emTag = commentBox.querySelector('em');
+    var allText = commentBox.innerText || '';
+
+    // strongとem以外のテキストをコメントとして抽出
+    comment = allText;
+    if (persona) comment = comment.replace(commentBox.querySelector('strong').innerText, '');
+    if (emTag) comment = comment.replace(emTag.innerText, '');
+    comment = comment.replace(/^\s+|\s+$/g, '');
+  }
+
+  // 称号エリア
+  var titleY = 820;
+
+  if (persona) {
+    // 称号背景バッジ
+    ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
+    var personaWidth = ctx.measureText(persona).width + 80;
+    var badgeX = (W - personaWidth) / 2;
+    ctx.fillStyle = 'rgba(255,152,0,0.2)';
+    roundRect(ctx, badgeX, titleY - 45, personaWidth, 65, 32);
+    ctx.fill();
+    ctx.strokeStyle = '#ff9800';
+    ctx.lineWidth = 2;
+    roundRect(ctx, badgeX, titleY - 45, personaWidth, 65, 32);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ff9800';
+    ctx.textAlign = 'center';
+    ctx.fillText(persona, W / 2, titleY);
+    titleY += 80;
+  }
+
+  // コメント（折り返し描画）
+  if (comment) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = '30px "Helvetica Neue", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    var lines = wrapText(ctx, comment, W - 160);
+    for (var li = 0; li < lines.length && li < 12; li++) {
+      ctx.fillText(lines[li], W / 2, titleY + li * 44);
+    }
+    titleY += lines.length * 44 + 30;
+  }
+
+  // --- フッター ---
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '26px "Helvetica Neue", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Powered by AI Sommelier × 茶飯事Bar', W / 2, H - 80);
+
+  // --- 画像化 & プレビュー ---
+  var dataUrl = canvas.toDataURL('image/png');
+  document.getElementById('share-image-preview').src = dataUrl;
+  document.getElementById('share-image-download').href = dataUrl;
+
+  // シェアボタンのモーダルの上にプレビューモーダルを出す
+  shareImageModal.show();
+}
+
+// --- ヘルパー: テキスト折り返し ---
+function wrapText(ctx, text, maxWidth) {
+  var lines = [];
+  var paragraphs = text.split('\n');
+  for (var pi = 0; pi < paragraphs.length; pi++) {
+    var chars = paragraphs[pi];
+    var line = '';
+    for (var ci = 0; ci < chars.length; ci++) {
+      var testLine = line + chars[ci];
+      if (ctx.measureText(testLine).width > maxWidth && line.length > 0) {
+        lines.push(line);
+        line = chars[ci];
+      } else {
+        line = testLine;
       }
     }
-  ])
-  .then(function(res) {
-    if (res) {
-      showMessage("Shared!", "シェアしました！");
-    }
-  })
-  .catch(function(err) {
-    console.error("Share error", err);
-  });
+    if (line) lines.push(line);
+  }
+  return lines;
 }
 
-function makeBar(value) {
-  var max = 5;
-  var filled = Math.round(value);
-  if (filled > max) filled = max;
-  if (filled < 0) filled = 0;
-  var bar = "";
-  for (var i = 0; i < filled; i++) bar += "●";
-  for (var j = filled; j < max; j++) bar += "○";
-  return bar + " " + value;
+// --- ヘルパー: 角丸四角 ---
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
+
 
 
