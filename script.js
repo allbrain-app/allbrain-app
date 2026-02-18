@@ -663,11 +663,11 @@ function executeCheckout() {
   fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
   .then(data => {
-    if (data.status === "success") {
-      historyCache = null; // 会計したのでキャッシュクリア
-      showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。");
-      setTimeout(() => location.reload(), 2000);
-    } else { 
+  if (data.status === "success") {
+  historyCache = null;
+  showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。<br><br><small style='color:#888;'>明日、LINEであなた専用のメッセージをお届けしますね。</small>");
+  setTimeout(function() { location.reload(); }, 3000);
+  } else { 
         historyModal.show();
         setTimeout(() => showMessage("Error", "エラー: " + data.message), 500);
         if(btn) { btn.disabled = false; btn.innerText = "お会計を確定する"; }
