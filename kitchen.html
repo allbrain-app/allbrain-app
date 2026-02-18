@@ -9,25 +9,18 @@
   <style>
     body { background-color: #222; color: #fff; font-family: sans-serif; padding: 20px; }
     .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
-    
-    /* 注文カード */
     .order-card { background-color: #333; border: 1px solid #444; border-radius: 8px; margin-bottom: 15px; padding: 15px; width: 100%; border-left: 5px solid #03dac6; transition: all 0.3s ease; }
     .new-order-flash { animation: flash-animation 1s ease-out; }
     @keyframes flash-animation { 0% { background-color: #03dac6; } 100% { background-color: #333; } }
-    
-    /* ★変更: テーブル番号を強調 */
     .order-table { font-size: 1.4rem; font-weight: bold; color: #fff; background-color: #03dac6; color:#000; padding: 2px 8px; border-radius: 4px; margin-right: 10px;}
     .order-time { font-size: 1.0rem; color: #aaa; margin-left: 10px;}
     .order-user { font-size: 0.9rem; color: #aaa; display: block; margin-top: 5px;}
     .order-items { font-size: 1.2rem; margin: 10px 0; font-weight: bold; }
     .btn-done { width: 100%; height: 50px; font-size: 1.2rem; font-weight: bold; }
-
-    /* 会計リクエスト */
     .checkout-card { background-color: #4a1c1c; border: 1px solid #ff5555; border-radius: 8px; margin-bottom: 15px; padding: 15px; border-left: 8px solid #ff5555; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 85, 85, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 85, 85, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 85, 85, 0); } }
     .checkout-table { font-size: 1.5rem; font-weight: bold; color: #fff; background-color: #dc3545; padding: 2px 10px; border-radius: 4px; }
     .checkout-total { font-size: 1.5rem; font-weight: bold; color: #ffaeae; }
-
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     .form-check-input:checked { background-color: #dc3545; border-color: #dc3545; }
@@ -72,7 +65,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body bg-dark text-white">
-        <ul class="nav nav-tabs border-secondary mb-3"><li class="nav-item"><button class="nav-link active text-light" data-bs-toggle="tab" data-bs-target="#analysis-pane">📊 売上分析</button></li><li class="nav-item"><button class="nav-link text-light" data-bs-toggle="tab" data-bs-target="#menu-pane" onclick="fetchMenuForOwner()">📝 メニュー管理</button></li></ul>
+        <ul class="nav nav-tabs border-secondary mb-3"><li class="nav-item"><button class="nav-link active text-light" data-bs-toggle="tab" data-bs-target="#analysis-pane">📊 売上分析</button></li><li class="nav-item"><button class="nav-link text-light" data-bs-toggle="tab" data-bs-target="#menu-pane" onclick="fetchMenuForOwner()">📝 メニュー管理</button></li><li class="nav-item"><button class="nav-link text-light" data-bs-toggle="tab" data-bs-target="#ai-log-pane" onclick="fetchAiLog()">🤖 AI追客</button></li></ul>
         <div class="tab-content">
           <div class="tab-pane fade show active" id="analysis-pane">
             <div class="row text-center mb-4"><div class="col-6"><div class="small text-secondary">総売上</div><div class="fs-3 fw-bold text-warning" id="owner-total-sales">¥0</div></div><div class="col-6"><div class="small text-secondary">注文数</div><div class="fs-3 fw-bold" id="owner-order-count">0件</div></div></div>
@@ -82,6 +75,16 @@
           <div class="tab-pane fade" id="menu-pane">
             <div class="alert alert-dark border-secondary small text-secondary">赤スイッチ＝売り切れ</div>
             <div id="owner-menu-list"><div class="text-center py-5">読み込み中...</div></div>
+          </div>
+          <div class="tab-pane fade" id="ai-log-pane">
+            <div class="row text-center mb-4">
+              <div class="col-4"><div class="small text-secondary">総ユーザー</div><div class="fs-3 fw-bold text-info" id="ai-total-users">-</div></div>
+              <div class="col-4"><div class="small text-secondary">VIP</div><div class="fs-3 fw-bold text-warning" id="ai-vip-count">-</div></div>
+              <div class="col-4"><div class="small text-secondary">休眠</div><div class="fs-3 fw-bold text-danger" id="ai-dormant-count">-</div></div>
+            </div>
+            <div style="height: 250px; position: relative;"><canvas id="segmentChart"></canvas></div>
+            <h6 class="mt-4 mb-2 text-secondary">👤 ユーザー一覧</h6>
+            <div id="ai-user-list" style="max-height: 300px; overflow-y: auto;"></div>
           </div>
         </div>
       </div>
@@ -148,7 +151,6 @@
         if(isNew) hasNew = true;
         const flashClass = isNew ? "new-order-flash" : "";
         const itemsHtml = order.items.map(item => `<div>・${item}</div>`).join("");
-        // ★変更: テーブル番号を表示
         html += `
           <div class="order-card ${flashClass}" id="card-${order.id}">
             <div class="d-flex justify-content-between align-items-start">
@@ -187,7 +189,6 @@
     checkouts.forEach(c => {
       const isNew = (!previousCheckoutIds.has(c.userId) && !isFirstLoad);
       if(isNew) hasNew = true;
-      // ★変更: テーブル番号を表示
       html += `
         <div class="checkout-card">
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -245,7 +246,6 @@
     list.insertAdjacentHTML('afterbegin', html);
   }
 
-  // オーナー機能系（変更なし）
   function openOwnerModal() { const p=prompt("パスワード(1234)"); if(p!=="1234")return; ownerModal.show(); fetchOwnerData(); }
   function fetchOwnerData() { document.getElementById('owner-total-sales').innerText="---"; fetch(GAS_API_URL,{method:"POST",body:JSON.stringify({action:"getOwnerData"})}).then(r=>r.json()).then(d=>renderOwnerDashboard(d)); }
   function renderOwnerDashboard(d) { document.getElementById('owner-total-sales').innerText="¥"+d.totalSales.toLocaleString(); document.getElementById('owner-order-count').innerText=d.orderCount; const c=document.getElementById('salesChart').getContext('2d'); if(salesChartInstance)salesChartInstance.destroy(); salesChartInstance=new Chart(c,{type:'bar',data:{labels:d.ranking.map(i=>i.name),datasets:[{label:'点数',data:d.ranking.map(i=>i.count),backgroundColor:'#03dac6'}]},options:{indexAxis:'y',scales:{x:{beginAtZero:true}}}}); }
@@ -262,6 +262,64 @@
     const v=ck.checked; st.innerText="..."; 
     fetch(GAS_API_URL,{method:"POST",body:JSON.stringify({action:"updateStock",itemId:id,isSoldOut:v})})
     .then(r=>r.json()).then(d=>{ st.innerText=v?"売切":"販売中"; st.className=v?"small text-danger":"small text-success"; });
+  }
+
+  // -------------------------------------------------------
+  // Step5: AI追客ログ
+  // -------------------------------------------------------
+  var segmentChartInstance = null;
+
+  function fetchAiLog() {
+    document.getElementById('ai-total-users').innerText = "...";
+    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify({ action: "getAiLog" }) })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { renderAiLog(d); });
+  }
+
+  function renderAiLog(d) {
+    document.getElementById('ai-total-users').innerText = d.total + "人";
+    document.getElementById('ai-vip-count').innerText = (d.segments.vip || 0) + "人";
+    document.getElementById('ai-dormant-count').innerText = ((d.segments.dormant30 || 0) + (d.segments.dormant60 || 0)) + "人";
+
+    var ctx = document.getElementById('segmentChart').getContext('2d');
+    if (segmentChartInstance) segmentChartInstance.destroy();
+    segmentChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['VIP', '本日来店', '7日以内', '30日ご無沙汰', '60日以上'],
+        datasets: [{
+          data: [d.segments.vip || 0, d.segments.active || 0, d.segments.remind7 || 0, d.segments.dormant30 || 0, d.segments.dormant60 || 0],
+          backgroundColor: ['#ffc107', '#03dac6', '#4fc3f7', '#ff9800', '#f44336']
+        }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#ccc', font: { size: 12 } } } }
+      }
+    });
+
+    var list = document.getElementById('ai-user-list');
+    if (!d.users || d.users.length === 0) {
+      list.innerHTML = '<div class="text-secondary small text-center py-3">ユーザーデータなし</div>';
+      return;
+    }
+    var html = '';
+    d.users.forEach(function(u) {
+      var badgeColor = 'secondary';
+      if (u.segment === 'VIP（常連）') badgeColor = 'warning';
+      else if (u.segment === '本日来店') badgeColor = 'info';
+      else if (u.segment === '60日以上（休眠）') badgeColor = 'danger';
+      else if (u.segment === '30日ご無沙汰') badgeColor = 'warning';
+
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #444;">'
+        + '<div>'
+        + '<div class="fw-bold">' + u.name + '</div>'
+        + '<div class="small text-secondary">' + u.visits + '回来店 / ' + u.lastVisit + '</div>'
+        + (u.persona !== '-' ? '<div class="small text-warning">' + u.persona + '</div>' : '')
+        + '</div>'
+        + '<span class="badge bg-' + badgeColor + '" style="font-size:0.7rem;">' + u.segment + '</span>'
+        + '</div>';
+    });
+    list.innerHTML = html;
   }
 </script>
 
