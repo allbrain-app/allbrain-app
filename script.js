@@ -915,6 +915,10 @@ function typeWriter(element, text) {
 // Step0: パーソナライズ挨拶トースト
 // ==============================
 function showGreetingToast(name, profile) {
+  // 今回の来店中に既に表示済みなら何もしない
+  if (sessionStorage.getItem('MO_GREETED')) return;
+  sessionStorage.setItem('MO_GREETED', '1');
+
   var msg = '';
 
   if (profile && profile.status === 'found' && profile.visitCount >= 2) {
@@ -933,3 +937,4 @@ function showGreetingToast(name, profile) {
   setTimeout(function() { toast.classList.remove('show'); }, 4000);
   setTimeout(function() { toast.remove(); }, 4500);
 }
+
