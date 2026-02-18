@@ -1123,13 +1123,51 @@ function generateTasteImage() {
   ctx.textAlign = 'center';
   ctx.fillText('Powered by AI Sommelier × 茶飯事Bar', W / 2, H - 80);
 
-  // --- 画像化 & プレビュー ---
-  var dataUrl = canvas.toDataURL('image/png');
-  document.getElementById('share-image-preview').src = dataUrl;
-  document.getElementById('share-image-download').href = dataUrl;
+  // --- canvasをモーダルに描画 ---
+  var displayCanvas = document.getElementById('share-canvas');
+  displayCanvas.width = W;
+  displayCanvas.height = H;
+  var displayCtx = displayCanvas.getContext('2d');
+  displayCtx.drawImage(canvas, 0, 0);
 
   shareImageModal.show();
 }
+
+function saveShareImage() {
+  var canvas = document.getElementById('share-canvas');
+
+  canvas.toBlob(function(blob) {
+    if (!blob) {
+      alert('画像の生成に失敗しました');
+      return;
+    }
+
+    // Web Share API が使えるか試す（画像シェア対応）
+    if (navigator.share && navigator.canShare) {
+      var file = new File([blob], 'my-taste.png', { type: 'image/png' });
+      var shareData = { files: [file] };
+
+      if (navigator.canShare(shareData)) {
+        navigator.share(shareData)
+          .then(function() { console.log('Shared'); })
+          .catch(function(err) { console.log('Share cancelled', err); });
+        return;
+      }
+    }
+
+    // Web Share API が使えない場合 → Blob URLでダウンロード
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-taste.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+
+  }, 'image/png');
+}
+
 
 // --- ヘルパー: テキスト折り返し ---
 function wrapText(ctx, text, maxWidth) {
