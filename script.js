@@ -10,9 +10,9 @@ let pendingItem = null;
 const PLACEHOLDER_IMG = "https://placehold.co/100x100/eeeeee/999999?text=No+Img";
 
 // ★高速化用キャッシュ変数
-let historyCache = null; // 履歴データの一時保存
-let myTasteCache = null; // MyTaste分析結果の一時保存
-let isHistoryLoading = false; // 重複ロード防止
+let historyCache = null;
+let myTasteCache = null;
+let isHistoryLoading = false;
 
 // 初期化処理
 window.onload = function() {
@@ -26,7 +26,6 @@ window.onload = function() {
     return;
   }
 
-  // モーダル初期化
   confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
   messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
   recommendModal = new bootstrap.Modal(document.getElementById('recommendModal'));
@@ -82,7 +81,6 @@ function executeResetTable() {
 }
 
 function initializeLiff() {
-  // ★キャッシュからメニューを即表示（GAS応答を待たない）
   var cached = localStorage.getItem('MO_MENU_CACHE');
   if (cached) {
     try {
@@ -99,7 +97,6 @@ function initializeLiff() {
       } else {
         liff.getProfile().then(function(p) {
           document.getElementById('user-info').innerText = 'Table: ' + currentTableId + ' / Guest: ' + p.displayName;
-          // ★統合API: メニュー＋ユーザー情報を1回で取得
           fetchInitData(p.userId, p.displayName);
           preloadHistoryData(p.userId);
         });
@@ -108,8 +105,6 @@ function initializeLiff() {
     .catch(function(err) { showMessage("Error", "LIFF Init failed: " + err.message); });
 }
 
-
-// ★新規: 裏で履歴を読み込む関数
 function preloadHistoryData(userId) {
     if (isHistoryLoading) return;
     isHistoryLoading = true;
@@ -117,7 +112,7 @@ function preloadHistoryData(userId) {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-          historyCache = data; // キャッシュに保存
+          historyCache = data;
           isHistoryLoading = false;
           console.log("History preloaded.");
       })
@@ -139,23 +134,19 @@ function fetchInitData(userId, displayName) {
     .then(function(data) {
       if (data.status === 'error') throw new Error(data.message);
 
-      // メニュー反映 + キャッシュ保存
       allMenuItems = data.menu;
       localStorage.setItem('MO_MENU_CACHE', JSON.stringify(data.menu));
       initCategoryTabs(allMenuItems);
       renderMenu();
 
-      // ユーザー挨拶
       showGreetingToast(displayName, data.profile);
     })
     .catch(function(err) {
-      // キャッシュで既に表示済みならエラーは目立たせない
       if (allMenuItems.length === 0) {
         document.getElementById('menu-list').innerHTML = '<div class="text-danger text-center mt-5">' + err.message + '</div>';
       }
     });
 }
-
 
 function initCategoryTabs(items) {
   const categories = new Set();
@@ -184,7 +175,6 @@ function renderMenu() {
     return;
   }
 
-  // ★一括代入（innerHTML += のループを排除）
   var html = '';
   for (var i = 0; i < itemsToShow.length; i++) {
     var item = itemsToShow[i];
@@ -208,7 +198,6 @@ function renderMenu() {
   }
   container.innerHTML = html;
 }
-
 
 function convertDriveUrl(url) {
   if (!url) return PLACEHOLDER_IMG;
@@ -435,7 +424,6 @@ function handleOrderSuccess(items) {
     }
 }
 
-
 function startAiAnalysis(orderedItems, userId) {
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
@@ -449,8 +437,6 @@ function startAiAnalysis(orderedItems, userId) {
         history: itemNames,
         userId: userId
     };
-
-
 
     fetch(GAS_API_URL, {
         method: "POST",
@@ -557,7 +543,6 @@ function openHistoryModal() {
   if (!historyModal) historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
   historyModal.show();
   
-  // ★高速化: キャッシュがあれば即表示
   if (historyCache) {
       renderHistory(historyCache);
   } else {
@@ -582,12 +567,11 @@ function fetchHistoryData() {
   }
   
   liff.getProfile().then(profile => {
-    // 既にロード中なら待つ（簡易実装として再度リクエスト）
     const url = `${GAS_API_URL}?action=getHistory&userId=${profile.userId}`;
     fetch(url)
       .then(res => res.json())
       .then(data => { 
-          historyCache = data; // キャッシュ更新
+          historyCache = data;
           renderHistory(data); 
       })
       .catch(err => {
@@ -666,11 +650,11 @@ function executeCheckout() {
   fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
   .then(res => res.json())
   .then(data => {
-  if (data.status === "success") {
-  historyCache = null;
-  showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。<br><br><small style='color:#888;'>明日、LINEであなた専用のメッセージをお届けしますね。</small>");
-  setTimeout(function() { location.reload(); }, 3000);
-  } else { 
+    if (data.status === "success") {
+      historyCache = null;
+      showMessage("Staff Called", "店員をお呼びしました。<br>そのままお席でお待ちください。<br><br><small style='color:#888;'>明日、LINEであなた専用のメッセージをお届けしますね。</small>");
+      setTimeout(function() { location.reload(); }, 3000);
+    } else { 
         historyModal.show();
         setTimeout(() => showMessage("Error", "エラー: " + data.message), 500);
         if(btn) { btn.disabled = false; btn.innerText = "お会計を確定する"; }
@@ -692,17 +676,12 @@ function openMyPageModal() {
 function loadAndRenderChart() {
   if (!liff.isLoggedIn()) { alert("ログインが必要です"); return; }
   
-  // ★高速化: MyTasteのデータは重いので、キャッシュがあればAI通信をスキップ
-  // ただし、注文履歴が増えていないか確認するために履歴データは必要
-  // ここではシンプルに「キャッシュがあればそれを使う」
   if (myTasteCache) {
       renderMyTasteFromCache(myTasteCache);
       return;
   }
 
-  // なければロード
   liff.getProfile().then(profile => {
-    // 履歴を取得（キャッシュがあれば速い）
     if(historyCache) {
         const allItems = extractAllItems(historyCache);
         calculateAndDraw(allItems);
@@ -710,7 +689,7 @@ function loadAndRenderChart() {
         fetch(`${GAS_API_URL}?action=getHistory&userId=${profile.userId}`)
           .then(res => res.json())
           .then(historyData => {
-            historyCache = historyData; // ついでに保存
+            historyCache = historyData;
             const allItems = extractAllItems(historyData);
             calculateAndDraw(allItems);
           });
@@ -718,7 +697,6 @@ function loadAndRenderChart() {
   });
 }
 
-// 履歴データから全アイテム名を抽出
 function extractAllItems(historyData) {
     const allItems = [];
     historyData.current.forEach(item => allItems.push(item.name));
@@ -726,15 +704,12 @@ function extractAllItems(historyData) {
     return allItems;
 }
 
-// キャッシュからMyTasteを描画
 function renderMyTasteFromCache(data) {
-    // チャート用データ復元
     const allItems = extractAllItems(historyCache || {current:[], past:[]}); 
     const stats = calculateStats(allItems);
     const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
     drawChart(dataValues);
 
-    // AIテキスト復元
     const commentBox = document.getElementById('my-taste-text');
     const recommendContainer = document.getElementById('my-taste-recommendation');
     const cardArea = document.getElementById('my-taste-card-area');
@@ -747,6 +722,10 @@ function renderMyTasteFromCache(data) {
         if(aiData.advice) htmlContent += `<em>✨ ${aiData.advice}</em>`;
         commentBox.innerHTML = htmlContent;
 
+        // ★シェアボタンを表示
+        var shareBtn = document.getElementById('share-btn-area');
+        if (shareBtn) shareBtn.style.display = 'block';
+
         if (aiData.recommendItemName) {
            renderMyTasteCard(aiData.recommendItemName);
         }
@@ -757,7 +736,6 @@ function calculateAndDraw(itemNames) {
   const stats = calculateStats(itemNames); 
   const dataValues = [stats.salty, stats.sweet, stats.sour, stats.bitter, stats.rich];
   drawChart(dataValues);
-  // AIコメント取得
   fetchAiComment(stats, itemNames);
 }
 
@@ -819,6 +797,10 @@ function fetchAiComment(stats, historyItems) {
   if(recommendContainer) recommendContainer.style.display = 'none';
   if(cardArea) cardArea.innerHTML = "";
   
+  // シェアボタンを一旦非表示（再分析時）
+  var shareBtnHide = document.getElementById('share-btn-area');
+  if (shareBtnHide) shareBtnHide.style.display = 'none';
+
   if (historyItems.length === 0) { 
     if(commentBox) commentBox.innerText = "まだデータがありません。注文履歴が増えると、AIがあなたの好みを分析します！"; 
     return; 
@@ -833,7 +815,6 @@ function fetchAiComment(stats, historyItems) {
       try {
         const aiData = JSON.parse(data.message);
         
-        // ★高速化: 結果をキャッシュに保存
         myTasteCache = { aiData: aiData };
 
         let htmlContent = "";
@@ -842,6 +823,10 @@ function fetchAiComment(stats, historyItems) {
         if(aiData.advice) htmlContent += `<em>✨ ${aiData.advice}</em>`;
         
         commentBox.innerHTML = htmlContent;
+
+        // ★シェアボタンを表示
+        var shareBtn = document.getElementById('share-btn-area');
+        if (shareBtn) shareBtn.style.display = 'block';
 
         if (aiData.recommendItemName) {
            renderMyTasteCard(aiData.recommendItemName);
@@ -913,15 +898,12 @@ function typeWriter(element, text) {
     type();
 }
 
-
 // ==============================
 // Step0: パーソナライズ挨拶トースト
 // ==============================
 function showGreetingToast(name, profile) {
-  // このセッション中に既に表示済みなら出さない
   if (sessionStorage.getItem('MO_GREETED')) return;
 
-  // 今日既に来店済み（last_visit_dateが当日）なら出さない
   if (profile && profile.status === 'found') {
     var today = new Date();
     var m = today.getMonth() + 1;
@@ -930,7 +912,6 @@ function showGreetingToast(name, profile) {
     if (profile.lastVisit === todayStr) return;
   }
 
-  // 表示済みフラグを立てる
   sessionStorage.setItem('MO_GREETED', '1');
 
   var msg = '';
@@ -1097,7 +1078,6 @@ function generateTasteImage() {
     var emTag = commentBox.querySelector('em');
     var allText = commentBox.innerText || '';
 
-    // strongとem以外のテキストをコメントとして抽出
     comment = allText;
     if (persona) comment = comment.replace(commentBox.querySelector('strong').innerText, '');
     if (emTag) comment = comment.replace(emTag.innerText, '');
@@ -1108,7 +1088,6 @@ function generateTasteImage() {
   var titleY = 820;
 
   if (persona) {
-    // 称号背景バッジ
     ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
     var personaWidth = ctx.measureText(persona).width + 80;
     var badgeX = (W - personaWidth) / 2;
@@ -1149,7 +1128,6 @@ function generateTasteImage() {
   document.getElementById('share-image-preview').src = dataUrl;
   document.getElementById('share-image-download').href = dataUrl;
 
-  // シェアボタンのモーダルの上にプレビューモーダルを出す
   shareImageModal.show();
 }
 
@@ -1188,6 +1166,3 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
 }
-
-
-
