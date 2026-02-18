@@ -952,5 +952,106 @@ function showGreetingToast(name, profile) {
   setTimeout(function() { toast.remove(); }, 4500);
 }
 
+// ==============================
+// Step4: My Taste シェア機能
+// ==============================
+function shareMyTaste() {
+  if (!liff.isLoggedIn()) { alert("ログインが必要です"); return; }
+
+  // チャートからデータ取得
+  var persona = "";
+  var commentBox = document.getElementById('my-taste-text');
+  if (commentBox) {
+    var strongTag = commentBox.querySelector('strong');
+    if (strongTag) persona = strongTag.innerText;
+  }
+
+  // 味覚データ取得
+  var stats = { salty: 0, sweet: 0, sour: 0, bitter: 0, rich: 0 };
+  if (tasteChartInstance && tasteChartInstance.data && tasteChartInstance.data.datasets[0]) {
+    var d = tasteChartInstance.data.datasets[0].data;
+    stats = { salty: d[0], sweet: d[1], sour: d[2], bitter: d[3], rich: d[4] };
+  }
+
+  // バー表示用テキスト生成
+  var barSalty  = makeBar(stats.salty);
+  var barSweet  = makeBar(stats.sweet);
+  var barSour   = makeBar(stats.sour);
+  var barBitter = makeBar(stats.bitter);
+  var barRich   = makeBar(stats.rich);
+
+  var title = persona || "My Taste 診断結果";
+  var body = "塩味 " + barSalty + "\n"
+    + "甘味 " + barSweet + "\n"
+    + "酸味 " + barSour + "\n"
+    + "苦味 " + barBitter + "\n"
+    + "コク " + barRich;
+
+  var liffUrl = "https://liff.line.me/" + MY_LIFF_ID;
+
+  liff.shareTargetPicker([
+    {
+      type: "flex",
+      altText: title,
+      contents: {
+        type: "bubble",
+        size: "kilo",
+        header: {
+          type: "box",
+          layout: "vertical",
+          backgroundColor: "#FF9800",
+          paddingAll: "15px",
+          contents: [
+            { type: "text", text: "My Taste", color: "#ffffff", size: "sm", weight: "bold" },
+            { type: "text", text: title, color: "#ffffff", size: "lg", weight: "bold", wrap: true }
+          ]
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          paddingAll: "15px",
+          spacing: "sm",
+          contents: [
+            { type: "text", text: body, size: "sm", wrap: true, color: "#555555" },
+            { type: "separator", margin: "lg" },
+            { type: "text", text: "AIソムリエがあなたの味覚を分析！", size: "xs", color: "#999999", margin: "md", align: "center" }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          paddingAll: "10px",
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              color: "#FF9800",
+              action: { type: "uri", label: "自分も診断してみる", uri: liffUrl }
+            }
+          ]
+        }
+      }
+    }
+  ])
+  .then(function(res) {
+    if (res) {
+      showMessage("Shared!", "シェアしました！");
+    }
+  })
+  .catch(function(err) {
+    console.error("Share error", err);
+  });
+}
+
+function makeBar(value) {
+  var max = 5;
+  var filled = Math.round(value);
+  if (filled > max) filled = max;
+  if (filled < 0) filled = 0;
+  var bar = "";
+  for (var i = 0; i < filled; i++) bar += "●";
+  for (var j = filled; j < max; j++) bar += "○";
+  return bar + " " + value;
+}
 
 
