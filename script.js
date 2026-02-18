@@ -10,6 +10,7 @@ var tasteChartInstance = null;
 var currentOptionItem = null;
 var myTasteCache = null;
 
+
 // ============================================================
 // 初期化
 // ============================================================
