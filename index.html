@@ -2,265 +2,253 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>モバイルオーダー</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>茶飯事Bar - モバイルオーダー</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <nav class="navbar navbar-light bg-light shadow-sm fixed-top">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-      <span class="navbar-brand mb-0 h1 fw-bold text-primary">
-        <i class="bi bi-cup-straw me-2"></i>茶飯事Bar
-      </span>
-      <div class="d-flex align-items-center">
-        <button class="btn btn-sm btn-outline-primary me-2 rounded-circle" style="width: 36px; height: 36px;" onclick="openMyPageModal()">
-          <i class="bi bi-person-circle"></i>
-        </button>
-        <button class="btn btn-sm btn-outline-secondary rounded-circle" style="width: 36px; height: 36px;" onclick="openHistoryModal()">
-          <i class="bi bi-clock-history"></i>
-        </button>
-      </div>
-    </div>
-    <div class="container-fluid px-3 pb-2">
-      <small id="user-info" class="text-muted" style="font-size: 0.8rem; cursor: pointer;" onclick="openResetTableModal()">Loading user...</small>
-    </div>
-  </nav>
+<!-- ローディング -->
+<div id="loading-overlay">
+  <div class="spinner-border text-warning" role="status"></div>
+  <p class="mt-2 text-white">読み込み中...</p>
+</div>
 
-  <div class="container-fluid mt-5 pt-5 pb-2 bg-white sticky-top" style="top: 56px; z-index: 1000;">
-    <ul class="nav nav-pills flex-nowrap overflow-auto pb-2" id="category-tabs" style="white-space: nowrap;"></ul>
-  </div>
-
-  <div class="container-fluid py-3 mb-5" id="menu-list">
-    <div class="text-center mt-5">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="mt-2 text-muted">メニューを読み込んでいます...</p>
-    </div>
-  </div>
-
-  <div id="cart-bar" class="fixed-bottom bg-white border-top shadow p-3 d-flex justify-content-between align-items-center" style="display:none; z-index: 1020;">
+<!-- ヘッダー -->
+<nav class="navbar navbar-dark sticky-top" style="background:#1a1a2e;">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold">🍷 茶飯事Bar</span>
     <div>
-      <span class="badge bg-danger rounded-pill me-2" id="cart-count">0</span>
-      <span class="fw-bold" id="cart-total">¥0</span>
+      <button class="btn btn-outline-light btn-sm me-1" onclick="openMyPage()">
+        <i class="bi bi-person-circle"></i> My Taste
+      </button>
+      <button class="btn btn-outline-light btn-sm me-1" onclick="openHistory()">
+        <i class="bi bi-clock-history"></i>
+      </button>
+      <button class="btn btn-warning btn-sm position-relative" onclick="openCart()">
+        <i class="bi bi-cart3"></i>
+        <span id="cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none;">0</span>
+      </button>
     </div>
-    <button class="btn btn-primary px-4 rounded-pill shadow-sm" onclick="showConfirmModal()">
-      カートを見る <i class="bi bi-chevron-right ms-1"></i>
-    </button>
   </div>
+</nav>
 
-  <div class="modal fade" id="tableModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center p-4">
-        <h5 class="fw-bold mb-3">いらっしゃいませ</h5>
-        <p class="text-muted small mb-4">テーブル番号を入力してください。</p>
-        <div class="mb-3">
-          <input type="text" id="input-table-id" class="form-control form-control-lg text-center fw-bold" placeholder="例: 1, A" style="letter-spacing: 2px;">
+<!-- テーブル番号モーダル -->
+<div class="modal fade" id="tableModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <h5 class="fw-bold mb-3">テーブル番号を入力</h5>
+      <input type="number" id="table-input" class="form-control form-control-lg text-center mb-3" placeholder="例: 1">
+      <button class="btn btn-warning w-100 py-2 fw-bold" onclick="setTable()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- カテゴリータブ -->
+<div id="category-tabs" class="d-flex overflow-auto py-2 px-3 gap-2 sticky-top" style="top:56px; background:#fff; z-index:100;"></div>
+
+<!-- スケルトン UI -->
+<div id="menu-skeleton" class="container py-3">
+  <div class="row g-3">
+    <div class="col-6" v-for="i in 4">
+      <div class="card skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="card-body">
+          <div class="skeleton-text w-75 mb-2"></div>
+          <div class="skeleton-text w-50"></div>
         </div>
-        <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="saveTableId()">このテーブルで開始する</button>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="card-body">
+          <div class="skeleton-text w-75 mb-2"></div>
+          <div class="skeleton-text w-50"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="card-body">
+          <div class="skeleton-text w-75 mb-2"></div>
+          <div class="skeleton-text w-50"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="card-body">
+          <div class="skeleton-text w-75 mb-2"></div>
+          <div class="skeleton-text w-50"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card skeleton-card">
+        <div class="skeleton-img"></div>
+        <div class="card-body">
+          <div class="skeleton-text w-75 mb-2"></div>
+          <div class="skeleton-text w-50"></div>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="modal fade" id="resetTableModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center p-4">
-        <h5 class="fw-bold mb-3 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>確認</h5>
-        <p class="text-muted mb-4">テーブル情報をリセットして<br>トップ画面に戻りますか？</p>
-        <div class="d-flex gap-2 justify-content-center">
-          <button type="button" class="btn btn-light w-50 py-2 rounded-pill" data-bs-dismiss="modal">キャンセル</button>
-          <button type="button" class="btn btn-danger w-50 py-2 rounded-pill fw-bold" onclick="executeResetTable()">リセットする</button>
+<!-- メニュー一覧 -->
+<div id="menu-container" class="container py-3" style="display:none;">
+  <div id="menu-items" class="row g-3"></div>
+</div>
+
+<!-- カートモーダル -->
+<div class="modal fade" id="cartModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-cart3 me-2"></i>カート</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="cart-items"></div>
+      <div class="modal-footer flex-column">
+        <div class="d-flex justify-content-between w-100 mb-2">
+          <span class="fw-bold">合計</span>
+          <span class="fw-bold text-warning" id="cart-total">¥0</span>
         </div>
+        <button class="btn btn-warning w-100 py-2 fw-bold" onclick="submitOrder()">注文する</button>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold">ご注文内容の確認</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div id="cart-items-container"></div>
-          <div class="d-flex justify-content-between mt-3 pt-3 border-top fw-bold fs-5">
-            <span>合計</span>
-            <span id="cart-grand-total" class="text-primary">¥0</span>
-          </div>
-        </div>
-        <div class="modal-footer border-0 justify-content-center pb-4">
-          <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow" id="btn-final-order" onclick="executeOrder()">
-            注文を確定する
+<!-- 注文履歴モーダル -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-clock-history me-2"></i>注文履歴</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="history-items">
+        <p class="text-muted text-center">読み込み中...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AIソムリエモーダル -->
+<div class="modal fade" id="aiModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <h5 class="fw-bold mb-3">🤖 AIソムリエ</h5>
+      <div id="ai-comment" class="text-start">
+        <p class="text-muted">分析中...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- My Taste モーダル -->
+<div class="modal fade" id="myPageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-radar me-2"></i>My Taste</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <canvas id="taste-chart" width="300" height="300"></canvas>
+        <div id="my-taste-text" class="mt-3 text-start small text-muted"></div>
+        <div id="my-taste-recommendation" class="mt-2"></div>
+        <div id="share-btn-area" style="display:none;" class="mt-3">
+          <button class="btn btn-outline-primary btn-sm rounded-pill px-4" onclick="generateTasteImage()">
+            <i class="bi bi-camera me-1"></i>シェア画像を作成
           </button>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="modal fade" id="recommendModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content shadow-lg border-0" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
-        <div class="modal-header border-0">
-          <h5 class="modal-title text-primary fw-bold"><i class="bi bi-stars me-2"></i>AIソムリエ</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeRecommendation()"></button>
-        </div>
-        <div class="modal-body text-center pt-0 pb-4">
-          <div class="card p-3 mb-3 border-0 bg-white shadow-sm mt-2">
-            <div id="recommendation-loading" class="py-3" style="display:none;">
-              <div class="spinner-border text-primary" role="status"></div>
-              <p class="small text-muted mt-2">分析中...</p>
-            </div>
-            <p class="small text-dark mb-0" id="recommendation-text" style="min-height: 3em; text-align: left; line-height: 1.6;"></p>
-          </div>
-          <div id="recommendation-item-container" style="display:none;">
-            <div id="recommendation-card-area"></div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-5" data-bs-dismiss="modal">メニューに戻る</button>
-        </div>
+<!-- シェア画像モーダル -->
+<div class="modal fade" id="shareImageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content text-center p-3">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">📸 ストーリーズにシェア</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-bold" id="messageModalTitle">Message</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-body">
+        <div id="share-loading" style="display:none;">
+          <div class="spinner-border text-primary my-4" role="status"></div>
+          <p class="text-muted">画像を生成中...</p>
         </div>
-        <div class="modal-body pt-2" id="messageModalBody"></div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="checkoutConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center p-4">
-        <h5 class="fw-bold mb-3">お会計を確定しますか？</h5>
-        <p class="text-muted mb-4">店員が精算に伺います。<br>よろしければ確定ボタンを押してください。</p>
-        <div class="d-flex gap-2 justify-content-center">
-          <button type="button" class="btn btn-light w-50 py-2 rounded-pill" onclick="cancelCheckout()">キャンセル</button>
-          <button type="button" class="btn btn-success w-50 py-2 rounded-pill fw-bold" onclick="executeCheckout()">確定する</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold"><i class="bi bi-receipt me-2"></i>注文履歴 & 会計</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-0">
-          <ul class="nav nav-tabs nav-fill" id="history-tabs">
-            <li class="nav-item"><a class="nav-link active" onclick="switchHistoryTab('current')">現在</a></li>
-            <li class="nav-item"><a class="nav-link" onclick="switchHistoryTab('past')">過去</a></li>
-          </ul>
-          <div class="p-3 bg-light" id="tab-current" style="min-height: 200px;">
-            <div class="card shadow-sm border-0">
-              <div class="card-body">
-                <h6 class="text-muted mb-3 small">今回のご注文 (未会計)</h6>
-                <div id="current-order-list"></div>
-                <hr>
-                <div class="d-flex justify-content-between fw-bold fs-5">
-                  <span>合計</span>
-                  <span class="text-danger" id="current-total-price">¥0</span>
-                </div>
-              </div>
-            </div>
-            <button class="btn btn-success w-100 mt-3 py-3 rounded-pill fw-bold shadow" id="btn-checkout" onclick="openCheckoutModal()">
-              お会計を確定する
-            </button>
-          </div>
-          <div class="p-3" id="tab-past" style="display:none; min-height: 200px;">
-            <div id="past-order-container"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="myPageModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header border-0">
-          <h5 class="modal-title fw-bold"><i class="bi bi-person-heart me-2"></i>My Taste</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body text-center">
-          <canvas id="tasteChart" style="max-height: 250px;"></canvas>
-          <div class="mt-3 p-3 bg-light rounded text-start">
-            <small class="text-muted d-block mb-1 fw-bold">AI Sommelier's Note:</small>
-            <p id="my-taste-text" class="text-muted small mb-0" style="line-height: 1.6;">
-              <span class="spinner-border spinner-border-sm text-secondary" role="status"></span> 分析中...
-            </p>
-          </div>
-          <div id="my-taste-recommendation" class="mt-3" style="display:none;">
-            <div id="my-taste-card-area"></div>
-          </div>
-          <div class="mt-3" id="share-btn-area" style="display:none;">
-            <button class="btn btn-outline-primary btn-sm rounded-pill px-4" onclick="generateTasteImage()">
-              <i class="bi bi-instagram me-1"></i>ストーリーズ用画像を保存
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-  <div class="modal fade" id="optionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title fw-bold" id="optionModalTitle">オプション選択</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div id="option-container"></div>
-          <div class="d-flex justify-content-end mt-3 fw-bold text-primary"><span id="option-total-price">合計: ¥0</span></div>
-        </div>
-        <div class="modal-footer border-0 justify-content-center pb-4"><button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow" onclick="confirmOptionAdd()">決定してカートへ</button></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="loading-overlay" class="overlay-hidden d-flex flex-column justify-content-center align-items-center">
-    <div class="spinner-border text-light mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
-    <div class="text-white fw-bold">送信中...</div>
-  </div>
-
-  <script src="config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="script.js"></script>
-
-  <div class="modal fade" id="shareImageModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content text-center p-3">
-        <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-bold"><i class="bi bi-instagram me-2"></i>ストーリーズにシェア</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <canvas id="share-canvas" style="width:100%; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.15);"></canvas>
-          <button class="btn btn-primary w-100 mt-3 py-3 rounded-pill fw-bold shadow" onclick="saveShareImage()">
-            <i class="bi bi-download me-2"></i>画像を保存する
-          </button>
+        <div id="share-result" style="display:none;">
+          <img id="share-preview-img" src="" style="width:100%; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
+          <p class="text-muted small mt-3">↓ 画像を長押しして保存してね！</p>
+          <a id="share-direct-link" href="" target="_blank" class="btn btn-outline-primary w-100 mt-2 rounded-pill">
+            <i class="bi bi-box-arrow-up-right me-1"></i>画像を別タブで開く
+          </a>
           <p class="text-muted small mt-3 mb-0">保存したらInstagramストーリーズに投稿してね！</p>
         </div>
       </div>
     </div>
   </div>
+</div>
 
+<!-- オプションモーダル -->
+<div class="modal fade" id="optionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="option-item-name"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="option-list"></div>
+      <div class="modal-footer">
+        <button class="btn btn-warning w-100 fw-bold" onclick="addWithOptions()">カートに追加</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  
+<!-- 会計確認モーダル -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <h5 class="fw-bold mb-3">お会計</h5>
+      <p>店員をお呼びしてお会計を行います。</p>
+      <button class="btn btn-warning w-100 py-2 fw-bold" onclick="executeCheckout()">店員を呼ぶ</button>
+    </div>
+  </div>
+</div>
+
+<!-- メッセージモーダル -->
+<div class="modal fade" id="msgModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <h5 class="fw-bold mb-2" id="msg-title"></h5>
+      <p id="msg-body"></p>
+    </div>
+  </div>
+</div>
+
+<!-- フッター -->
+<div class="fixed-bottom bg-white border-top p-2 d-flex justify-content-around">
+  <button class="btn btn-sm" onclick="scrollToTop()"><i class="bi bi-house-door"></i><br><small>メニュー</small></button>
+  <button class="btn btn-sm" onclick="openHistory()"><i class="bi bi-clock-history"></i><br><small>履歴</small></button>
+  <button class="btn btn-sm" onclick="openMyPage()"><i class="bi bi-person-circle"></i><br><small>My Taste</small></button>
+  <button class="btn btn-sm" onclick="openCheckout()"><i class="bi bi-cash-stack"></i><br><small>会計</small></button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="config.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
