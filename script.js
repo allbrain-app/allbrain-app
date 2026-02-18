@@ -420,34 +420,37 @@ function handleOrderSuccess(items) {
     cart = [];
     updateCartUI();
 
-    // ★重要: 注文したのでキャッシュをクリアして、最新を読み直すフラグを立てる
-    historyCache = null; 
+    historyCache = null;
     myTasteCache = null;
-    
-    // 裏で履歴を再取得しておく（次のために）
-    liff.getProfile().then(p => { preloadHistoryData(p.userId); });
+
+    liff.getProfile().then(function(p) {
+      preloadHistoryData(p.userId);
+      startAiAnalysis(items, p.userId);
+    });
 
     const loadingElem = document.getElementById('recommendation-loading');
-    if(loadingElem) {
+    if (loadingElem) {
         const loadingText = loadingElem.querySelector('p');
-        if(loadingText) loadingText.innerText = "AIソムリエが分析中...";
+        if (loadingText) loadingText.innerText = "AIソムリエが分析中...";
     }
-    
-    startAiAnalysis(items);
 }
 
-function startAiAnalysis(orderedItems) {
+
+function startAiAnalysis(orderedItems, userId) {
     const textElem = document.getElementById('recommendation-text');
     const loadingElem = document.getElementById('recommendation-loading');
-    
+
     const itemNames = orderedItems.map(i => i.name);
     const currentStats = calculateStats(itemNames);
-    
-    const payload = { 
-        action: "getAiComment", 
-        stats: currentStats, 
-        history: itemNames 
+
+    const payload = {
+        action: "getAiComment",
+        stats: currentStats,
+        history: itemNames,
+        userId: userId
     };
+
+
 
     fetch(GAS_API_URL, {
         method: "POST",
