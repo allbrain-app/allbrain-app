@@ -82,22 +82,32 @@ function executeResetTable() {
 }
 
 function initializeLiff() {
+  // ★キャッシュからメニューを即表示（GAS応答を待たない）
+  var cached = localStorage.getItem('MO_MENU_CACHE');
+  if (cached) {
+    try {
+      allMenuItems = JSON.parse(cached);
+      initCategoryTabs(allMenuItems);
+      renderMenu();
+    } catch(e) {}
+  }
+
   liff.init({ liffId: MY_LIFF_ID })
-    .then(() => {
+    .then(function() {
       if (!liff.isLoggedIn()) {
         liff.login({ redirectUri: location.href });
       } else {
-        liff.getProfile().then(p => {
-          document.getElementById('user-info').innerText = `Table: ${currentTableId} / Guest: ${p.displayName}`;
-          
-          // ★高速化: ログイン完了と同時に、裏で履歴を読み込んでおく
+        liff.getProfile().then(function(p) {
+          document.getElementById('user-info').innerText = 'Table: ' + currentTableId + ' / Guest: ' + p.displayName;
+          // ★統合API: メニュー＋ユーザー情報を1回で取得
+          fetchInitData(p.userId, p.displayName);
           preloadHistoryData(p.userId);
         });
-        fetchMenu(); 
       }
     })
-    .catch(err => showMessage("Error", "LIFF Init failed: " + err.message));
+    .catch(function(err) { showMessage("Error", "LIFF Init failed: " + err.message); });
 }
+
 
 // ★新規: 裏で履歴を読み込む関数
 function preloadHistoryData(userId) {
@@ -117,20 +127,35 @@ function preloadHistoryData(userId) {
       });
 }
 
-function fetchMenu() {
-  fetch(GAS_API_URL + "?action=getMenu")
-    .then(res => {
+function fetchInitData(userId, displayName) {
+  fetch(GAS_API_URL + "?action=getInitData&userId=" + userId)
+    .then(function(res) {
       if (!res.ok) throw new Error("Network error");
-      return res.text().then(text => { try { return JSON.parse(text); } catch(e) { throw new Error("Data Error"); }});
+      return res.text().then(function(text) {
+        try { return JSON.parse(text); }
+        catch(e) { throw new Error("Data Error"); }
+      });
     })
-    .then(data => {
-       if(data.status === 'error') throw new Error(data.message);
-       allMenuItems = data;
-       initCategoryTabs(allMenuItems);
-       renderMenu();
+    .then(function(data) {
+      if (data.status === 'error') throw new Error(data.message);
+
+      // メニュー反映 + キャッシュ保存
+      allMenuItems = data.menu;
+      localStorage.setItem('MO_MENU_CACHE', JSON.stringify(data.menu));
+      initCategoryTabs(allMenuItems);
+      renderMenu();
+
+      // ユーザー挨拶
+      showGreetingToast(displayName, data.profile);
     })
-    .catch(err => document.getElementById('menu-list').innerHTML = `<div class="text-danger text-center mt-5">${err.message}</div>`);
+    .catch(function(err) {
+      // キャッシュで既に表示済みならエラーは目立たせない
+      if (allMenuItems.length === 0) {
+        document.getElementById('menu-list').innerHTML = '<div class="text-danger text-center mt-5">' + err.message + '</div>';
+      }
+    });
 }
+
 
 function initCategoryTabs(items) {
   const categories = new Set();
@@ -151,34 +176,39 @@ function filterCategory(category, element) {
 }
 
 function renderMenu() {
-  const container = document.getElementById('menu-list');
-  container.innerHTML = ""; 
-  const itemsToShow = (currentCategory === 'ALL') ? allMenuItems : allMenuItems.filter(item => item.category === currentCategory);
-  if(itemsToShow.length === 0) {
-     container.innerHTML = '<div class="text-secondary text-center mt-5">該当する商品がありません</div>'; return;
+  var container = document.getElementById('menu-list');
+  var itemsToShow = (currentCategory === 'ALL') ? allMenuItems : allMenuItems.filter(function(item) { return item.category === currentCategory; });
+
+  if (itemsToShow.length === 0) {
+    container.innerHTML = '<div class="text-secondary text-center mt-5">該当する商品がありません</div>';
+    return;
   }
-  itemsToShow.forEach(item => {
-    const isSoldOut = item.isSoldOut;
-    const btnState = isSoldOut ? 'disabled' : '';
-    const btnText = isSoldOut ? 'SOLD OUT' : '追加';
-    const btnClass = isSoldOut ? 'btn-secondary' : 'btn-add';
-    const cardOpacity = isSoldOut ? 'opacity: 0.6;' : '';
-    const imgUrl = convertDriveUrl(item.image);
-    const card = `
-      <div class="card" style="${cardOpacity}">
-        <div class="card-body-custom">
-          <div class="img-area"><img src="${imgUrl}" alt="${item.name}" onerror="this.onerror=null; this.src='${PLACEHOLDER_IMG}';"></div>
-          <div class="text-area">
-            <div class="item-name">${item.name}${isSoldOut ? '<span class="badge bg-danger ms-1" style="font-size:0.5em;">売切</span>' : ''}</div>
-            <div class="item-flavor">${item.flavor}</div>
-            <div class="item-price">¥${item.price}</div>
-          </div>
-          <div class="btn-area"><button class="btn ${btnClass}" onclick="addToCart('${item.id}')" ${btnState}>${btnText}</button></div>
-        </div>
-      </div>`;
-    container.innerHTML += card;
-  });
+
+  // ★一括代入（innerHTML += のループを排除）
+  var html = '';
+  for (var i = 0; i < itemsToShow.length; i++) {
+    var item = itemsToShow[i];
+    var isSoldOut = item.isSoldOut;
+    var btnState = isSoldOut ? 'disabled' : '';
+    var btnText = isSoldOut ? 'SOLD OUT' : '追加';
+    var btnClass = isSoldOut ? 'btn-secondary' : 'btn-add';
+    var cardOpacity = isSoldOut ? 'opacity: 0.6;' : '';
+    var imgUrl = convertDriveUrl(item.image);
+
+    html += '<div class="card" style="' + cardOpacity + '">'
+      + '<div class="card-body-custom">'
+      + '<div class="img-area"><img src="' + imgUrl + '" alt="' + item.name + '" onerror="this.onerror=null; this.src=\'' + PLACEHOLDER_IMG + '\';"></div>'
+      + '<div class="text-area">'
+      + '<div class="item-name">' + item.name + (isSoldOut ? '<span class="badge bg-danger ms-1" style="font-size:0.5em;">売切</span>' : '') + '</div>'
+      + '<div class="item-flavor">' + item.flavor + '</div>'
+      + '<div class="item-price">¥' + item.price + '</div>'
+      + '</div>'
+      + '<div class="btn-area"><button class="btn ' + btnClass + '" onclick="addToCart(\'' + item.id + '\')" ' + btnState + '>' + btnText + '</button></div>'
+      + '</div></div>';
+  }
+  container.innerHTML = html;
 }
+
 
 function convertDriveUrl(url) {
   if (!url) return PLACEHOLDER_IMG;
@@ -878,4 +908,28 @@ function typeWriter(element, text) {
         }
     }
     type();
+}
+
+
+// ==============================
+// Step0: パーソナライズ挨拶トースト
+// ==============================
+function showGreetingToast(name, profile) {
+  var msg = '';
+
+  if (profile && profile.status === 'found' && profile.visitCount >= 2) {
+    msg = name + 'さん、' + profile.visitCount + '回目のご来店ですね！';
+    if (profile.aiPersona) msg += '\nあなたの称号：' + profile.aiPersona;
+  } else {
+    msg = 'ようこそ ' + name + ' さん！\nはじめてのご来店ありがとうございます。';
+  }
+
+  var toast = document.createElement('div');
+  toast.id = 'greeting-toast';
+  toast.innerText = msg;
+  document.body.appendChild(toast);
+
+  setTimeout(function() { toast.classList.add('show'); }, 100);
+  setTimeout(function() { toast.classList.remove('show'); }, 4000);
+  setTimeout(function() { toast.remove(); }, 4500);
 }
