@@ -3,250 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>茶飯事Bar - モバイルオーダー</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>モバイルオーダー</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
 <!-- ローディング -->
 <div id="loading-overlay">
-  <div class="spinner-border text-warning" role="status"></div>
-  <p class="mt-2 text-white">読み込み中...</p>
+  <div class="spinner"></div>
+  <p>読み込み中...</p>
 </div>
 
 <!-- ヘッダー -->
-<nav class="navbar navbar-dark sticky-top" style="background:#1a1a2e;">
-  <div class="container-fluid">
-    <span class="navbar-brand fw-bold">🍷 茶飯事Bar</span>
-    <div>
-      <button class="btn btn-outline-light btn-sm me-1" onclick="openMyPage()">
-        <i class="bi bi-person-circle"></i> My Taste
-      </button>
-      <button class="btn btn-outline-light btn-sm me-1" onclick="openHistory()">
-        <i class="bi bi-clock-history"></i>
-      </button>
-      <button class="btn btn-warning btn-sm position-relative" onclick="openCart()">
-        <i class="bi bi-cart3"></i>
-        <span id="cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none;">0</span>
-      </button>
-    </div>
-  </div>
-</nav>
+<header class="app-header">
+  <span class="shop-name">☕ Your Shop</span>
+  <button class="cart-btn" onclick="openCart()">
+    🛒
+    <span id="cart-badge" class="cart-badge" style="display:none;">0</span>
+  </button>
+</header>
 
 <!-- テーブル番号モーダル -->
-<div class="modal fade" id="tableModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center p-4">
-      <h5 class="fw-bold mb-3">テーブル番号を入力</h5>
-      <input type="number" id="table-input" class="form-control form-control-lg text-center mb-3" placeholder="例: 1">
-      <button class="btn btn-warning w-100 py-2 fw-bold" onclick="setTable()">OK</button>
-    </div>
+<div class="modal-backdrop center" id="tableModal">
+  <div class="modal-center-box" style="text-align:center;">
+    <h3 style="font-size:17px; font-weight:800; margin-bottom:16px;">テーブル番号を入力</h3>
+    <input type="number" id="table-input" class="table-input" placeholder="例: 1">
+    <button class="btn-primary" onclick="setTable()">OK</button>
   </div>
 </div>
 
-<!-- カテゴリータブ -->
-<div id="category-tabs" class="d-flex overflow-auto py-2 px-3 gap-2 sticky-top" style="top:56px; background:#fff; z-index:100;"></div>
-
-<!-- スケルトン UI -->
-<div id="menu-skeleton" class="container py-3">
-  <div class="row g-3">
-    <div class="col-6" v-for="i in 4">
-      <div class="card skeleton-card">
-        <div class="skeleton-img"></div>
-        <div class="card-body">
-          <div class="skeleton-text w-75 mb-2"></div>
-          <div class="skeleton-text w-50"></div>
-        </div>
-      </div>
+<!-- ========================================
+     メニュー画面
+     ======================================== -->
+<div id="screen-menu" class="screen active">
+  <!-- ソムリエバナー -->
+  <div class="sommelier-banner" onclick="openSommelierRec()">
+    <div>
+      <div class="banner-title">🍷 何を頼もうか迷ったら…</div>
+      <div class="banner-sub">AIソムリエがあなたにぴったりの一品を提案</div>
     </div>
-    <div class="col-6">
-      <div class="card skeleton-card">
-        <div class="skeleton-img"></div>
-        <div class="card-body">
-          <div class="skeleton-text w-75 mb-2"></div>
-          <div class="skeleton-text w-50"></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6">
-      <div class="card skeleton-card">
-        <div class="skeleton-img"></div>
-        <div class="card-body">
-          <div class="skeleton-text w-75 mb-2"></div>
-          <div class="skeleton-text w-50"></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6">
-      <div class="card skeleton-card">
-        <div class="skeleton-img"></div>
-        <div class="card-body">
-          <div class="skeleton-text w-75 mb-2"></div>
-          <div class="skeleton-text w-50"></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6">
-      <div class="card skeleton-card">
-        <div class="skeleton-img"></div>
-        <div class="card-body">
-          <div class="skeleton-text w-75 mb-2"></div>
-          <div class="skeleton-text w-50"></div>
-        </div>
-      </div>
-    </div>
+    <div class="banner-arrow">→</div>
   </div>
+
+  <!-- カテゴリータブ -->
+  <div id="category-tabs" class="category-tabs"></div>
+
+  <!-- スケルトン -->
+  <div id="menu-skeleton" class="menu-grid">
+    <div class="skeleton-card"><div class="skeleton-img"></div><div class="card-body"><div class="skeleton-text" style="width:75%;margin-bottom:8px;"></div><div class="skeleton-text" style="width:50%;"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-img"></div><div class="card-body"><div class="skeleton-text" style="width:75%;margin-bottom:8px;"></div><div class="skeleton-text" style="width:50%;"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-img"></div><div class="card-body"><div class="skeleton-text" style="width:75%;margin-bottom:8px;"></div><div class="skeleton-text" style="width:50%;"></div></div></div>
+    <div class="skeleton-card"><div class="skeleton-img"></div><div class="card-body"><div class="skeleton-text" style="width:75%;margin-bottom:8px;"></div><div class="skeleton-text" style="width:50%;"></div></div></div>
+  </div>
+
+  <!-- メニュー一覧 -->
+  <div id="menu-items" class="menu-grid" style="display:none;"></div>
 </div>
 
-<!-- メニュー一覧 -->
-<div id="menu-container" class="container py-3" style="display:none;">
-  <div id="menu-items" class="row g-3"></div>
-</div>
+<!-- ========================================
+     My Taste画面
+     ======================================== -->
+<div id="screen-taste" class="screen">
+  <div style="padding:20px 16px;">
+    <!-- 現在のレベル -->
+    <div class="taste-card" id="level-display-card"></div>
 
-<!-- カートモーダル -->
-<div class="modal fade" id="cartModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold"><i class="bi bi-cart3 me-2"></i>カート</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- レベル & 特典一覧 -->
+    <div class="taste-card level-list-toggle" onclick="toggleLevelList()">
+      <div class="level-list-header">
+        <h3>🎯 レベル & 特典一覧</h3>
+        <span id="level-arrow" class="level-arrow">▼</span>
       </div>
-      <div class="modal-body" id="cart-items"></div>
-      <div class="modal-footer flex-column">
-        <div class="d-flex justify-content-between w-100 mb-2">
-          <span class="fw-bold">合計</span>
-          <span class="fw-bold text-warning" id="cart-total">¥0</span>
-        </div>
-        <button class="btn btn-warning w-100 py-2 fw-bold" onclick="submitOrder()">注文する</button>
+      <div id="level-list" class="level-list"></div>
+    </div>
+
+    <!-- 味覚レーダーチャート -->
+    <div class="taste-card">
+      <div style="font-size:15px; font-weight:700; margin-bottom:12px; text-align:center;">あなたの味覚プロフィール</div>
+      <div class="chart-container">
+        <canvas id="taste-chart" width="280" height="280"></canvas>
+      </div>
+      <div id="taste-caption" class="chart-caption"></div>
+    </div>
+
+    <!-- シェア画像 -->
+    <button class="share-btn" onclick="generateTasteImage()">📸 シェア画像を作成</button>
+
+    <!-- 注文履歴 -->
+    <div class="taste-card">
+      <div style="font-size:15px; font-weight:700; margin-bottom:12px;">注文履歴</div>
+      <div id="history-items">
+        <p style="color:var(--text-muted); text-align:center;">注文するとここに表示されます</p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 注文履歴モーダル -->
-<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold"><i class="bi bi-clock-history me-2"></i>注文履歴</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- ========================================
+     ソムリエ画面
+     ======================================== -->
+<div id="screen-sommelier" class="screen">
+  <div class="sommelier-hero">
+    <div class="hero-icon">🍷</div>
+    <h2>AIソムリエ</h2>
+    <p>あなたの好みを知り尽くしたAIが提案します</p>
+  </div>
+
+  <div class="sommelier-card" onclick="openSommelierRec()">
+    <div class="sc-inner">
+      <div class="sc-icon">⚡</div>
+      <div>
+        <div class="sc-title">おすすめを聞く</div>
+        <div class="sc-desc">過去の注文履歴から、あなた好みの一品を即提案</div>
       </div>
-      <div class="modal-body" id="history-items">
-        <p class="text-muted text-center">読み込み中...</p>
+    </div>
+  </div>
+
+  <div class="sommelier-card" onclick="openConsult()">
+    <div class="sc-inner">
+      <div class="sc-icon">💬</div>
+      <div>
+        <div class="sc-title">ソムリエに相談</div>
+        <div class="sc-desc">今の気分を伝えて、最適なドリンクを一緒に探しましょう</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- AIソムリエモーダル -->
-<div class="modal fade" id="aiModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center p-4">
-      <h5 class="fw-bold mb-3">🤖 AIソムリエ</h5>
-      <div id="ai-comment" class="text-start">
-        <p class="text-muted">分析中...</p>
+<!-- ========================================
+     カートモーダル
+     ======================================== -->
+<div class="modal-backdrop" id="cartModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>🛒 カート</h3>
+      <button class="modal-close" onclick="closeModal('cartModal')">✕</button>
+    </div>
+    <div id="cart-items"></div>
+    <div id="cart-footer" style="display:none;">
+      <div class="cart-total-row">
+        <span class="cart-total-label">合計</span>
+        <span class="cart-total-value" id="cart-total">¥0</span>
       </div>
+      <button class="btn-primary" onclick="submitOrder()">注文する</button>
     </div>
   </div>
 </div>
 
-<!-- My Taste モーダル -->
-<div class="modal fade" id="myPageModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold"><i class="bi bi-radar me-2"></i>My Taste</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- ソムリエおすすめモーダル -->
+<div class="modal-backdrop" id="recModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>⚡ あなたへのおすすめ</h3>
+      <button class="modal-close" onclick="closeModal('recModal')">✕</button>
+    </div>
+    <div id="rec-content"></div>
+  </div>
+</div>
+
+<!-- ソムリエ相談モーダル -->
+<div class="modal-backdrop" id="consultModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>💬 ソムリエに相談</h3>
+      <button class="modal-close" onclick="closeModal('consultModal')">✕</button>
+    </div>
+    <div id="consult-content"></div>
+  </div>
+</div>
+
+<!-- 注文完了モーダル -->
+<div class="modal-backdrop center" id="completeModal">
+  <div class="modal-center-box">
+    <div class="order-complete">
+      <div class="oc-icon">✅</div>
+      <h3>注文完了！</h3>
+      <p>ご注文ありがとうございます。</p>
+      <div class="taste-update-link" onclick="closeModal('completeModal'); switchScreen('taste');">
+        <div class="tul-title">📊 My Tasteが更新されました</div>
+        <div class="tul-sub">あなたの味覚チャートを見てみる →</div>
       </div>
-      <div class="modal-body text-center">
-        <canvas id="taste-chart" width="300" height="300"></canvas>
-        <div id="my-taste-text" class="mt-3 text-start small text-muted"></div>
-        <div id="my-taste-recommendation" class="mt-2"></div>
-        <div id="share-btn-area" style="display:none;" class="mt-3">
-          <button class="btn btn-outline-primary btn-sm rounded-pill px-4" onclick="generateTasteImage()">
-            <i class="bi bi-camera me-1"></i>シェア画像を作成
-          </button>
-        </div>
-      </div>
+      <button class="btn-ghost" onclick="closeModal('completeModal')">閉じる</button>
     </div>
   </div>
 </div>
 
-<!-- シェア画像モーダル -->
-<div class="modal fade" id="shareImageModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content text-center p-3">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold">📸 ストーリーズにシェア</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div id="share-loading" style="display:none;">
-          <div class="spinner-border text-primary my-4" role="status"></div>
-          <p class="text-muted">画像を生成中...</p>
-        </div>
-        <div id="share-result" style="display:none;">
-          <img id="share-preview-img" src="" style="width:100%; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
-          <p class="text-muted small mt-3">↓ 画像を長押しして保存してね！</p>
-          <a id="share-direct-link" href="" target="_blank" class="btn btn-outline-primary w-100 mt-2 rounded-pill">
-            <i class="bi bi-box-arrow-up-right me-1"></i>画像を別タブで開く
-          </a>
-          <p class="text-muted small mt-3 mb-0">保存したらInstagramストーリーズに投稿してね！</p>
-        </div>
-      </div>
-    </div>
+<!-- レベルアップモーダル -->
+<div class="modal-backdrop center" id="levelUpModal">
+  <div class="modal-center-box">
+    <div class="levelup-modal" id="levelup-content"></div>
   </div>
 </div>
 
 <!-- オプションモーダル -->
-<div class="modal fade" id="optionModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold" id="option-item-name"></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="option-list"></div>
-      <div class="modal-footer">
-        <button class="btn btn-warning w-100 fw-bold" onclick="addWithOptions()">カートに追加</button>
-      </div>
+<div class="modal-backdrop" id="optionModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3 id="option-item-name"></h3>
+      <button class="modal-close" onclick="closeModal('optionModal')">✕</button>
     </div>
+    <div id="option-list"></div>
+    <button class="btn-primary" style="margin-top:16px;" onclick="addWithOptions()">カートに追加</button>
   </div>
 </div>
 
-<!-- 会計確認モーダル -->
-<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center p-4">
-      <h5 class="fw-bold mb-3">お会計</h5>
-      <p>店員をお呼びしてお会計を行います。</p>
-      <button class="btn btn-warning w-100 py-2 fw-bold" onclick="executeCheckout()">店員を呼ぶ</button>
+<!-- シェア画像モーダル -->
+<div class="modal-backdrop center" id="shareImageModal">
+  <div class="modal-center-box" style="max-width:420px; width:90%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-size:17px; font-weight:800; margin:0;">📸 シェア画像</h3>
+      <button class="modal-close" onclick="closeModal('shareImageModal')">✕</button>
     </div>
-  </div>
-</div>
-
-<!-- メッセージモーダル -->
-<div class="modal fade" id="msgModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content text-center p-4">
-      <h5 class="fw-bold mb-2" id="msg-title"></h5>
-      <p id="msg-body"></p>
+    <div id="share-loading" style="text-align:center; padding:30px 0;">
+      <div class="dot-loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <p style="color:var(--text-sub); font-size:13px;">画像を生成中...</p>
+    </div>
+    <div id="share-result" style="display:none; text-align:center;">
+      <img id="share-preview-img" src="" style="width:100%; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
+      <p style="color:var(--text-muted); font-size:12px; margin-top:12px;">↓ 画像を長押しして保存してね！</p>
+      <a id="share-direct-link" href="" target="_blank" class="btn-primary" style="display:block; text-decoration:none; text-align:center; margin-top:8px;">画像を別タブで開く</a>
     </div>
   </div>
 </div>
 
 <!-- フッター -->
-<div class="fixed-bottom bg-white border-top p-2 d-flex justify-content-around">
-  <button class="btn btn-sm" onclick="scrollToTop()"><i class="bi bi-house-door"></i><br><small>メニュー</small></button>
-  <button class="btn btn-sm" onclick="openHistory()"><i class="bi bi-clock-history"></i><br><small>履歴</small></button>
-  <button class="btn btn-sm" onclick="openMyPage()"><i class="bi bi-person-circle"></i><br><small>My Taste</small></button>
-  <button class="btn btn-sm" onclick="openCheckout()"><i class="bi bi-cash-stack"></i><br><small>会計</small></button>
-</div>
+<nav class="app-footer">
+  <button class="footer-tab active" data-screen="menu" onclick="switchScreen('menu')">
+    <span class="tab-icon">📋</span>
+    <span class="tab-label">メニュー</span>
+  </button>
+  <button class="footer-tab" data-screen="taste" onclick="switchScreen('taste')">
+    <span class="tab-icon">📊</span>
+    <span class="tab-label">My Taste</span>
+  </button>
+  <button class="footer-tab" data-screen="sommelier" onclick="switchScreen('sommelier')">
+    <span class="tab-icon">🍷</span>
+    <span class="tab-label">ソムリエ</span>
+  </button>
+</nav>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script src="config.js"></script>
 <script src="script.js"></script>
