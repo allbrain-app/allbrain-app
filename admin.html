@@ -220,7 +220,9 @@
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchTab('orders')">📋 オーダー</button>
   <button class="tab-btn" onclick="switchTab('menu')">📝 メニュー管理</button>
+  <button class="tab-btn" onclick="switchTab('customers')">👥 顧客管理</button>
 </div>
+
 
 <!-- ======== オーダータブ ======== -->
 <div class="tab-panel active" id="panel-orders">
@@ -337,6 +339,60 @@
   </div>
 </div>
 
+<!-- ======== 顧客管理タブ ======== -->
+<div class="tab-panel" id="panel-customers">
+  <div style="margin-bottom:16px;">
+    <input class="form-input" id="customer-search" placeholder="🔍 名前・タグで検索..." oninput="filterCustomers()">
+  </div>
+  <div class="section-label">👥 顧客一覧 <span class="badge badge-primary" id="customer-count">0</span></div>
+  <div id="customer-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
+  </div>
+</div>
+
+<!-- ======== 顧客詳細モーダル ======== -->
+<div class="modal-overlay" id="customerDetailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="cd-title">顧客詳細</span>
+      <button class="btn btn-ghost" onclick="closeCustomerDetail()">✕</button>
+    </div>
+
+    <div id="cd-profile" style="margin-bottom:20px;">
+      <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
+        <div style="width:56px; height:56px; border-radius:50%; background:var(--primary-light); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;" id="cd-avatar">👤</div>
+        <div>
+          <div style="font-size:17px; font-weight:700;" id="cd-name">-</div>
+          <div style="font-size:12px; color:var(--text-muted);" id="cd-line-id">-</div>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
+        <div style="background:var(--border-light); border-radius:var(--radius-sm); padding:12px; text-align:center;">
+          <div style="font-size:22px; font-weight:700; color:var(--primary);" id="cd-visits">0</div>
+          <div style="font-size:11px; color:var(--text-muted);">来店回数</div>
+        </div>
+        <div style="background:var(--border-light); border-radius:var(--radius-sm); padding:12px; text-align:center;">
+          <div style="font-size:22px; font-weight:700; color:var(--success);" id="cd-spend">¥0</div>
+          <div style="font-size:11px; color:var(--text-muted);">累計支出</div>
+        </div>
+        <div style="background:var(--border-light); border-radius:var(--radius-sm); padding:12px; text-align:center;">
+          <div style="font-size:14px; font-weight:700; color:var(--text-main);" id="cd-last-visit">-</div>
+          <div style="font-size:11px; color:var(--text-muted);">最終来店</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div class="form-group">
+        <label class="form-label">タグ（カンマ区切り）</label>
+        <input class="form-input" id="cd-tags" placeholder="例: 常連, ウイスキー好き, VIP">
+      </div>
+      <div class="form-group">
+        <label class="form-label">メモ</label>
+        <textarea class="form-input" id="cd-memo" rows="3" placeholder="接客メモやAI分析結果など..." style="resize:vertical;"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveCustomerInfo()" id="cd-save-btn">💾 保存</button>
+
 <!-- ======== 削除確認モーダル ======== -->
 <div class="modal-overlay" id="deleteConfirmModal">
   <div class="modal-box" style="max-width:400px; text-align:center;">
@@ -349,6 +405,7 @@
     </div>
   </div>
 </div>
+
 
 <script src="config.js"></script>
 <script>
