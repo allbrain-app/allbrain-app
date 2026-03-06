@@ -116,7 +116,14 @@ function resetOrderBtn(btn) {
 // ============================================================
 // 初期化
 // ============================================================
+
 function initializeLiff() {
+  var APP_VERSION = "20260306a";
+  var savedVer = localStorage.getItem("MO_APP_VERSION");
+  if (savedVer !== APP_VERSION) {
+    localStorage.removeItem("MO_MENU_CACHE");
+    localStorage.setItem("MO_APP_VERSION", APP_VERSION);
+  }
   var cached = localStorage.getItem("MO_MENU_CACHE");
   if (cached) {
     try {
