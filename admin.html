@@ -199,6 +199,36 @@
     }
     .image-preview img { width: 100%; height: 100%; object-fit: cover; }
     .image-actions { display: flex; flex-direction: column; gap: 8px; }
+    .customer-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
+      box-shadow: var(--shadow); cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .customer-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
+    .customer-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--primary-light); display: flex; align-items: center;
+      justify-content: center; font-size: 20px; flex-shrink: 0;
+    }
+    .customer-info { flex: 1; min-width: 0; }
+    .customer-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .customer-meta { font-size: 12px; color: var(--text-sub); display: flex; gap: 10px; flex-wrap: wrap; }
+    .customer-stats { text-align: right; flex-shrink: 0; }
+    .customer-stats-main { font-size: 16px; font-weight: 700; color: var(--primary); }
+    .customer-stats-sub { font-size: 11px; color: var(--text-muted); }
+    .customer-tag {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      background: var(--primary-light); color: var(--primary-dark);
+      padding: 2px 8px; border-radius: 6px; margin-right: 4px; margin-top: 4px;
+    }
+    .cd-history-item {
+      background: var(--border-light); border-radius: var(--radius-sm);
+      padding: 10px 14px; margin-bottom: 6px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cd-history-name { font-size: 14px; font-weight: 600; }
+    .cd-history-meta { font-size: 12px; color: var(--text-muted); }
   </style>
 </head>
 <body>
@@ -222,7 +252,6 @@
   <button class="tab-btn" onclick="switchTab('menu')">📝 メニュー管理</button>
   <button class="tab-btn" onclick="switchTab('customers')">👥 顧客管理</button>
 </div>
-
 
 <!-- ======== オーダータブ ======== -->
 <div class="tab-panel active" id="panel-orders">
@@ -249,6 +278,17 @@
   </div>
 </div>
 
+<!-- ======== 顧客管理タブ ======== -->
+<div class="tab-panel" id="panel-customers">
+  <div style="margin-bottom:16px;">
+    <input class="form-input" id="customer-search" placeholder="🔍 名前・タグで検索..." oninput="filterCustomers()">
+  </div>
+  <div class="section-label">👥 顧客一覧 <span class="badge badge-primary" id="customer-count">0</span></div>
+  <div id="customer-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
+  </div>
+</div>
+
 <!-- ======== メニュー編集モーダル ======== -->
 <div class="modal-overlay" id="menuFormModal">
   <div class="modal-box">
@@ -263,7 +303,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">アイテムID *</label>
-          <input class="form-input" id="mf-id" required placeholder="例: W005">
+          <input class="form-input" id="mf-id" required placeholder="例: D005">
         </div>
         <div class="form-group">
           <label class="form-label">カテゴリ *</label>
@@ -339,17 +379,6 @@
   </div>
 </div>
 
-<!-- ======== 顧客管理タブ ======== -->
-<div class="tab-panel" id="panel-customers">
-  <div style="margin-bottom:16px;">
-    <input class="form-input" id="customer-search" placeholder="🔍 名前・タグで検索..." oninput="filterCustomers()">
-  </div>
-  <div class="section-label">👥 顧客一覧 <span class="badge badge-primary" id="customer-count">0</span></div>
-  <div id="customer-list">
-    <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
-  </div>
-</div>
-
 <!-- ======== 顧客詳細モーダル ======== -->
 <div class="modal-overlay" id="customerDetailModal">
   <div class="modal-box">
@@ -392,6 +421,16 @@
         <textarea class="form-input" id="cd-memo" rows="3" placeholder="接客メモやAI分析結果など..." style="resize:vertical;"></textarea>
       </div>
       <button class="btn btn-primary" onclick="saveCustomerInfo()" id="cd-save-btn">💾 保存</button>
+    </div>
+
+    <div>
+      <div class="section-label">📋 注文履歴（直近20件）</div>
+      <div id="cd-history">
+        <div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px 0;">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ======== 削除確認モーダル ======== -->
 <div class="modal-overlay" id="deleteConfirmModal">
@@ -406,7 +445,6 @@
   </div>
 </div>
 
-
 <script src="config.js"></script>
 <script>
 var currentTab = "orders";
@@ -417,6 +455,8 @@ var audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.og
 var allMenuData = [];
 var deleteTargetId = "";
 var orderInterval = null;
+var allCustomers = [];
+var currentCustomerId = "";
 
 window.onload = function() {
   if (typeof GAS_API_URL === "undefined") { alert("config.js error"); return; }
@@ -432,11 +472,13 @@ function switchTab(tab) {
   document.getElementById("panel-" + tab).classList.add("active");
   if (tab === "menu") loadMenuList();
   if (tab === "orders") loadOrders(true);
+  if (tab === "customers") loadCustomers();
 }
 
 function refreshCurrentTab() {
   if (currentTab === "orders") loadOrders(true);
   if (currentTab === "menu") loadMenuList();
+  if (currentTab === "customers") loadCustomers();
 }
 
 function showToast(msg) {
@@ -594,7 +636,6 @@ function toggleStock(id, checkbox) {
   });
 }
 
-// メニューフォーム：新規追加
 function openMenuForm() {
   document.getElementById("menu-form-title").textContent = "メニュー追加";
   document.getElementById("mf-mode").value = "add";
@@ -614,7 +655,6 @@ function openMenuForm() {
   document.getElementById("menuFormModal").classList.add("show");
 }
 
-// メニューフォーム：編集
 function openEditForm(itemId) {
   var item = allMenuData.find(function(i) { return i.id === itemId; });
   if (!item) return;
@@ -658,7 +698,6 @@ function closeMenuForm() {
   document.getElementById("menuFormModal").classList.remove("show");
 }
 
-// 画像プレビュー＆アップロード
 function previewImage(input) {
   var file = input.files[0];
   if (!file) return;
@@ -667,7 +706,7 @@ function previewImage(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     resizeToSquare(e.target.result, 512, function(squareBase64) {
-      preview.innerHTML = '<img src="' + squareBase64 + '" style="width:120px; height:120px; border-radius:8px; border:1px solid var(--border-color); object-fit:cover;">';
+      preview.innerHTML = '<img src="' + squareBase64 + '">';
       status.textContent = "アップロード中...";
       uploadImage(squareBase64, file.name);
     });
@@ -682,7 +721,6 @@ function resizeToSquare(base64Data, size, callback) {
     canvas.width = size;
     canvas.height = size;
     var ctx = canvas.getContext("2d");
-    // 中央を基準に正方形クロップ
     var srcSize = Math.min(img.width, img.height);
     var sx = (img.width - srcSize) / 2;
     var sy = (img.height - srcSize) / 2;
@@ -691,7 +729,6 @@ function resizeToSquare(base64Data, size, callback) {
   };
   img.src = base64Data;
 }
-
 
 function uploadImage(base64Data, fileName) {
   var status = document.getElementById("mf-upload-status");
@@ -718,18 +755,14 @@ function uploadImage(base64Data, fileName) {
     });
 }
 
-// 画像削除
 function removeImage() {
   var imageUrl = document.getElementById("mf-image").value;
   var status = document.getElementById("mf-upload-status");
   var deleteBtn = document.getElementById("mf-image-delete-btn");
   var preview = document.getElementById("mf-image-preview");
-
   if (!imageUrl) return;
-
   status.textContent = "削除中...";
   status.style.color = "var(--text-muted)";
-
   fetch(GAS_API_URL, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "deleteImage", imageUrl: imageUrl })
@@ -756,7 +789,6 @@ function removeImage() {
     });
 }
 
-// メニュー保存
 function saveMenuItem(e) {
   e.preventDefault();
   var mode = document.getElementById("mf-mode").value;
@@ -793,16 +825,17 @@ function saveMenuItem(e) {
   }).catch(function() { showToast("通信エラー"); });
 }
 
-// メニュー削除
 function openDeleteConfirm(id, name) {
   deleteTargetId = id;
   document.getElementById("delete-item-name").textContent = name;
   document.getElementById("deleteConfirmModal").classList.add("show");
 }
+
 function closeDeleteConfirm() {
   document.getElementById("deleteConfirmModal").classList.remove("show");
   deleteTargetId = "";
 }
+
 function confirmDelete() {
   if (!deleteTargetId) return;
   fetch(GAS_API_URL, {
@@ -813,6 +846,150 @@ function confirmDelete() {
       showToast("削除しました"); closeDeleteConfirm(); loadMenuList();
     } else { showToast("エラー: " + (d.message || "")); }
   }).catch(function() { showToast("通信エラー"); });
+}
+
+// ============================================================
+// 顧客管理タブ
+// ============================================================
+function loadCustomers() {
+  var container = document.getElementById("customer-list");
+  container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>';
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getCustomerList" })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success") {
+        allCustomers = d.customers || [];
+        document.getElementById("customer-count").textContent = allCustomers.length;
+        renderCustomers(allCustomers);
+      } else {
+        container.innerHTML = '<div class="empty-state"><div class="empty-text">読み込みに失敗しました: ' + (d.message || "") + '</div></div>';
+      }
+    })
+    .catch(function(e) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-text">通信エラー</div></div>';
+      console.error("loadCustomers error:", e);
+    });
+}
+
+function renderCustomers(customers) {
+  var container = document.getElementById("customer-list");
+  if (!customers.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">顧客データがありません</div></div>';
+    return;
+  }
+  var html = "";
+  customers.forEach(function(c) {
+    var tagsHtml = "";
+    if (c.tags) {
+      c.tags.split(",").forEach(function(t) {
+        t = t.trim();
+        if (t) tagsHtml += '<span class="customer-tag">' + t + "</span>";
+      });
+    }
+    var lastVisit = c.last_visit_date || "未来店";
+    var spend = c.total_spend ? "¥" + Number(c.total_spend).toLocaleString() : "¥0";
+    html += '<div class="customer-card" onclick="openCustomerDetail(\'' + c.line_user_id + '\')">' +
+      '<div class="customer-avatar">👤</div>' +
+      '<div class="customer-info">' +
+      '<div class="customer-name">' + (c.display_name || "不明") + "</div>" +
+      '<div class="customer-meta"><span>来店 ' + (c.visit_count || 0) + "回</span><span>" + spend + "</span><span>" + lastVisit + "</span></div>" +
+      (tagsHtml ? '<div style="margin-top:4px;">' + tagsHtml + "</div>" : "") +
+      "</div>" +
+      '<div class="customer-stats">' +
+      '<div class="customer-stats-main">' + (c.visit_count || 0) + "回</div>" +
+      '<div class="customer-stats-sub">来店</div></div></div>';
+  });
+  container.innerHTML = html;
+}
+
+function filterCustomers() {
+  var q = document.getElementById("customer-search").value.toLowerCase().trim();
+  if (!q) { renderCustomers(allCustomers); return; }
+  var filtered = allCustomers.filter(function(c) {
+    var name = (c.display_name || "").toLowerCase();
+    var tags = (c.tags || "").toLowerCase();
+    return name.indexOf(q) !== -1 || tags.indexOf(q) !== -1;
+  });
+  renderCustomers(filtered);
+}
+
+function openCustomerDetail(lineUserId) {
+  currentCustomerId = lineUserId;
+  document.getElementById("customerDetailModal").classList.add("show");
+  var c = allCustomers.find(function(x) { return x.line_user_id === lineUserId; });
+  if (c) {
+    document.getElementById("cd-title").textContent = (c.display_name || "不明") + " さん";
+    document.getElementById("cd-name").textContent = c.display_name || "不明";
+    document.getElementById("cd-line-id").textContent = "ID: " + lineUserId.substring(0, 12) + "...";
+    document.getElementById("cd-visits").textContent = c.visit_count || 0;
+    document.getElementById("cd-spend").textContent = "¥" + Number(c.total_spend || 0).toLocaleString();
+    document.getElementById("cd-last-visit").textContent = c.last_visit_date || "未来店";
+    document.getElementById("cd-tags").value = c.tags || "";
+    document.getElementById("cd-memo").value = c.ai_persona || "";
+  }
+  var historyContainer = document.getElementById("cd-history");
+  historyContainer.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px 0;">読み込み中...</div>';
+  fetch(GAS_API_URL + "?action=getHistory&userId=" + encodeURIComponent(lineUserId) + "&limit=20")
+    .then(function(r) { return r.json(); })
+    .then(function(orders) {
+      if (!orders || !orders.length) {
+        historyContainer.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px 0;">注文履歴がありません</div>';
+        return;
+      }
+      var html = "";
+      orders.forEach(function(o) {
+        html += '<div class="cd-history-item">' +
+          '<div><div class="cd-history-name">' + (o.itemName || "不明") + "</div>" +
+          '<div class="cd-history-meta">' + (o.timestamp || "-") + "</div></div>" +
+          '<div style="font-weight:600; color:var(--text-sub);">¥' + Number(o.price || 0).toLocaleString() + "</div></div>";
+      });
+      historyContainer.innerHTML = html;
+    })
+    .catch(function() {
+      historyContainer.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px 0;">履歴の取得に失敗しました</div>';
+    });
+}
+
+function closeCustomerDetail() {
+  document.getElementById("customerDetailModal").classList.remove("show");
+  currentCustomerId = "";
+}
+
+function saveCustomerInfo() {
+  if (!currentCustomerId) return;
+  var btn = document.getElementById("cd-save-btn");
+  btn.textContent = "保存中...";
+  btn.disabled = true;
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "updateCustomer",
+      lineUserId: currentCustomerId,
+      tags: document.getElementById("cd-tags").value.trim(),
+      aiPersona: document.getElementById("cd-memo").value.trim()
+    })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.textContent = "💾 保存";
+      btn.disabled = false;
+      if (d.status === "success") {
+        showToast("保存しました");
+        var c = allCustomers.find(function(x) { return x.line_user_id === currentCustomerId; });
+        if (c) {
+          c.tags = document.getElementById("cd-tags").value.trim();
+          c.ai_persona = document.getElementById("cd-memo").value.trim();
+        }
+      } else { showToast("エラー: " + (d.message || "")); }
+    })
+    .catch(function() {
+      btn.textContent = "💾 保存";
+      btn.disabled = false;
+      showToast("通信エラー");
+    });
 }
 </script>
 </body>
