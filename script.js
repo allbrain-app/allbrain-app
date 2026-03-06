@@ -345,15 +345,12 @@ function submitOrder() {
   var prevLevel = getLevel(totalOrderCount);
   var newOrderCount = totalOrderCount + cart.length;
 
-  // ユーザー情報取得
   var accessToken = "";
   var userId = "";
   var userName = "ゲスト";
   try {
     accessToken = liff.getAccessToken() || "";
-  } catch (e) {
-    console.warn("getAccessToken failed:", e);
-  }
+  } catch (e) {}
   try {
     var profile = liff.getDecodedIDToken();
     if (profile) {
@@ -371,24 +368,18 @@ function submitOrder() {
     items: orderItems
   };
 
-  console.log("送信データ:", JSON.stringify(payload));
-
-  // ★ Content-Type を指定しない（CORSプリフライト回避）
+  // ★★★ headers を指定しない → プリフライト回避 ★★★
   fetch(GAS_API_URL, {
     method: "POST",
     body: JSON.stringify(payload)
   })
-    .then(function(r) {
-      console.log("レスポンスステータス:", r.status, r.url);
-      return r.text(); // まずtextで取得
-    })
+    .then(function(r) { return r.text(); })
     .then(function(text) {
-      console.log("レスポンス本文:", text);
+      console.log("GAS応答:", text);
       var d;
       try {
         d = JSON.parse(text);
       } catch (e) {
-        console.error("JSONパースエラー:", text);
         showToast("サーバーエラーが発生しました");
         return;
       }
@@ -411,15 +402,15 @@ function submitOrder() {
           preloadHistoryData(userId);
         }
       } else {
-        console.error("注文エラー:", d.message);
-        showToast("注文に失敗しました: " + (d.message || "不明"));
+        showToast("注文失敗: " + (d.message || ""));
       }
     })
     .catch(function(err) {
-      console.error("通信エラー詳細:", err);
+      console.error("通信エラー:", err);
       showToast("通信エラーが発生しました");
     });
 }
+
 
 
 
