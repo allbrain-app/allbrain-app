@@ -491,7 +491,6 @@ function renderMyTaste() {
 
   if (!userId) return;
 
-  // 最新5件だけ取得（軽量）
   fetch(GAS_API_URL + "?action=getHistory&userId=" + encodeURIComponent(userId) + "&limit=5")
     .then(function(r) { return r.json(); })
     .then(function(d) {
@@ -499,6 +498,7 @@ function renderMyTaste() {
       renderHistoryInTaste(d);
       var tasteData = calculateTasteData(d);
       renderTasteChart(tasteData);
+      renderTastePeriodSelector();  // ★ ここに移動 ★
     })
     .catch(function(e) {
       console.error("履歴取得エラー:", e);
@@ -506,10 +506,9 @@ function renderMyTaste() {
         renderHistoryInTaste(historyCache);
         var tasteData = calculateTasteData(historyCache);
         renderTasteChart(tasteData);
+        renderTastePeriodSelector();  // ★ ここにも追加 ★
       }
     });
-renderTastePeriodSelector();
-}
 
 function renderTastePeriodSelector() {
   if (document.getElementById("taste-period-selector")) return;
