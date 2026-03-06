@@ -416,20 +416,14 @@ function submitOrder() {
 
   fetch(GAS_API_URL, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   })
-    .then(function(r) { return r.text(); })
-    .then(function(text) {
-      console.log("GAS応答:", text);
-      var d;
-      try {
-        d = JSON.parse(text);
-      } catch (e) {
-        showToast("サーバーエラーが発生しました");
-        resetOrderBtn(orderBtn);
-        showOrderLoading(false);
-        return;
-      }
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      console.log("注文応答:", d);
+      showOrderLoading(false);
+      resetOrderBtn(orderBtn);
 
       if (d.status === "success") {
         totalOrderCount = newOrderCount;
@@ -437,7 +431,6 @@ function submitOrder() {
         updateCartBadge();
         closeModal("cartModal");
         historyCache = null;
-        showOrderLoading(false);
 
         var afterLevel = getLevel(totalOrderCount);
         if (afterLevel.lv > prevLevel.lv) {
@@ -451,17 +444,16 @@ function submitOrder() {
         }
       } else {
         showToast("注文失敗: " + (d.message || ""));
-        resetOrderBtn(orderBtn);
-        showOrderLoading(false);
       }
     })
     .catch(function(err) {
       console.error("通信エラー:", err);
-      showToast("通信エラーが発生しました");
-      resetOrderBtn(orderBtn);
       showOrderLoading(false);
+      resetOrderBtn(orderBtn);
+      showToast("通信エラーが発生しました");
     });
 }
+
 
 // ============================================================
 // レベルアップ演出
