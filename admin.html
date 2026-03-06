@@ -251,6 +251,7 @@
   <button class="tab-btn active" onclick="switchTab('orders')">📋 オーダー</button>
   <button class="tab-btn" onclick="switchTab('menu')">📝 メニュー管理</button>
   <button class="tab-btn" onclick="switchTab('customers')">👥 顧客管理</button>
+  <button class="tab-btn" onclick="switchTab('sales')">📊 売上分析</button>
   <button class="tab-btn" onclick="switchTab('settings')">⚙️ 設定</button>
 </div>
 
@@ -298,6 +299,12 @@
   </div>
 </div>
 
+<!-- ======== 売上分析タブ ======== -->
+<div class="tab-panel" id="panel-sales">
+  <div id="sales-content">
+    <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
+  </div>
+</div>
 
 <!-- ======== メニュー編集モーダル ======== -->
 <div class="modal-overlay" id="menuFormModal">
@@ -484,6 +491,7 @@ function switchTab(tab) {
   if (tab === "orders") loadOrders(true);
   if (tab === "customers") loadCustomers();
   if (tab === "settings") loadSettings();
+  if (tab === "sales") loadSales();
 }
 
 function refreshCurrentTab() {
@@ -491,6 +499,7 @@ function refreshCurrentTab() {
   if (currentTab === "menu") loadMenuList();
   if (currentTab === "customers") loadCustomers();
   if (currentTab === "settings") loadSettings();
+  if (currentTab === "sales") loadSales();
 }
 
 function showToast(msg) {
@@ -1146,6 +1155,109 @@ function saveAllSettings() {
       btn.disabled = false;
       showToast("通信エラー");
     });
+}
+
+// ============================================================
+// 売上分析タブ
+// ============================================================
+function loadSales() {
+  var container = document.getElementById("sales-content");
+  container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>';
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getSalesAnalysis" })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success") {
+        renderSales(d);
+      } else {
+        container.innerHTML = '<div class="empty-state"><div class="empty-text">読み込みに失敗しました: ' + (d.message || "") + '</div></div>';
+      }
+    })
+    .catch(function(e) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-text">通信エラー</div></div>';
+      console.error("loadSales error:", e);
+    });
+}
+
+function renderSales(data) {
+  var container = document.getElementById("sales-content");
+  var html = "";
+
+  // 今日のサマリー
+  html += '<div class="section-label" style="margin-top:0;">📊 本日の売上</div>';
+  html += '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px;">';
+  html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow);">';
+  html += '<div style="font-size:24px; font-weight:700; color:var(--primary);">¥' + Number(data.today.sales).toLocaleString() + '</div>';
+  html += '<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">売上合計</div></div>';
+  html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow);">';
+  html += '<div style="font-size:24px; font-weight:700; color:var(--success);">' + data.today.orders + '</div>';
+  html += '<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">注文数</div></div>';
+  html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow);">';
+  html += '<div style="font-size:24px; font-weight:700; color:var(--warning);">¥' + Number(data.today.avg).toLocaleString() + '</div>';
+  html += '<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">客単価</div></div>';
+  html += '</div>';
+
+  // 人気メニューランキング
+  html += '<div class="section-label">🏆 人気メニューランキング</div>';
+  html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:16px; margin-bottom:24px; box-shadow:var(--shadow);">';
+  if (data.ranking && data.ranking.length > 0) {
+    data.ranking.forEach(function(item, i) {
+      var medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i + 1) + ".";
+      var barWidth = Math.round((item.count / data.ranking[0].count) * 100);
+      html += '<div style="margin-bottom:12px;">';
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">';
+      html += '<span style="font-size:14px; font-weight:600;">' + medal + ' ' + item.name + '</span>';
+      html += '<span style="font-size:13px; color:var(--text-sub);">' + item.count + '杯 / ¥' + Number(item.sales).toLocaleString() + '</span>';
+      html += '</div>';
+      html += '<div style="background:var(--border-light); border-radius:4px; height:8px; overflow:hidden;">';
+      html += '<div style="background:var(--primary); height:100%; width:' + barWidth + '%; border-radius:4px; transition:width 0.5s;"></div>';
+      html += '</div></div>';
+    });
+  } else {
+    html += '<div style="text-align:center; color:var(--text-muted); padding:16px 0;">データがありません</div>';
+  }
+  html += '</div>';
+
+  // 日別売上推移（棒グラフ風）
+  html += '<div class="section-label">📈 日別売上推移</div>';
+  html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:16px; margin-bottom:24px; box-shadow:var(--shadow); overflow-x:auto;">';
+  if (data.daily && data.daily.length > 0) {
+    var maxSales = Math.max.apply(null, data.daily.map(function(d) { return d.sales; }));
+    html += '<div style="display:flex; align-items:flex-end; gap:4px; min-height:160px; padding-top:8px;">';
+    data.daily.forEach(function(day) {
+      var barH = maxSales > 0 ? Math.max(4, Math.round((day.sales / maxSales) * 140)) : 4;
+      var dateLabel = day.date.substring(5);
+      html += '<div style="flex:1; min-width:32px; text-align:center;">';
+      html += '<div style="font-size:10px; font-weight:600; color:var(--primary); margin-bottom:2px;">¥' + (day.sales >= 1000 ? Math.round(day.sales / 1000) + "k" : day.sales) + '</div>';
+      html += '<div style="background:var(--primary); height:' + barH + 'px; border-radius:4px 4px 0 0; margin:0 auto; width:80%;"></div>';
+      html += '<div style="font-size:9px; color:var(--text-muted); margin-top:4px;">' + dateLabel + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center; color:var(--text-muted); padding:16px 0;">データがありません</div>';
+  }
+  html += '</div>';
+
+  // 月別売上
+  html += '<div class="section-label">📅 月別売上</div>';
+  if (data.monthly && data.monthly.length > 0) {
+    data.monthly.forEach(function(m) {
+      html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:16px; margin-bottom:10px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center;">';
+      html += '<div>';
+      html += '<div style="font-size:15px; font-weight:700;">' + m.month + '</div>';
+      html += '<div style="font-size:12px; color:var(--text-sub); margin-top:2px;">' + m.orders + '注文 / ' + m.customers + '人</div>';
+      html += '</div>';
+      html += '<div style="font-size:18px; font-weight:700; color:var(--primary);">¥' + Number(m.sales).toLocaleString() + '</div>';
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:20px; text-align:center; color:var(--text-muted);">データがありません</div>';
+  }
+
+  container.innerHTML = html;
 }
 
 
