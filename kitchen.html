@@ -4,79 +4,455 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kitchen Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { background-color: #222; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 20px; margin: 0; }
-    .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    h2 { margin: 0; }
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --border-light: #f1f5f9;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
 
-    .order-card { background: #333; border: 1px solid #444; border-radius: 8px; margin-bottom: 15px; padding: 15px; border-left: 5px solid #3b82f6; transition: all 0.3s ease; }
-    .new-order-flash { animation: flash 1s ease-out; }
-    @keyframes flash { 0% { background: #3b82f6; } 100% { background: #333; } }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    .order-table { font-size: 1.4rem; font-weight: bold; background: #3b82f6; color: #fff; padding: 2px 8px; border-radius: 4px; margin-right: 10px; }
-    .order-time { font-size: 1rem; color: #aaa; margin-left: 10px; }
-    .order-user { font-size: 0.9rem; color: #aaa; display: block; margin-top: 5px; }
-    .order-items { font-size: 1.2rem; margin: 10px 0; font-weight: bold; }
-    .btn-done { width: 100%; height: 50px; font-size: 1.2rem; font-weight: bold; }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 0;
+      min-height: 100vh;
+    }
 
-    .history-section { margin-top: 50px; border-top: 1px dashed #555; padding-top: 20px; opacity: 0.6; }
-    .history-card { background: #2a2a2a; border: 1px solid #333; margin-bottom: 10px; padding: 10px; border-radius: 5px; }
+    .header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
 
-    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; }
-    .btn-outline { background: transparent; border: 1px solid #666; color: #fff; }
-    .btn-outline:hover { border-color: #aaa; }
-    .btn-success { background: #22c55e; color: #fff; }
-    .btn-dark { background: #444; border: 1px solid #666; color: #fff; }
-    .btn-refresh { background: transparent; border: 1px solid #666; color: #fff; }
-    .spin { animation: spin 1s linear infinite; }
+    .header-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .order-count-badge {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    /* 注文カード */
+    .order-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      margin-bottom: 14px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+      border-left: 4px solid var(--primary);
+    }
+
+    .new-order-flash {
+      animation: flash 1.5s ease-out;
+    }
+
+    @keyframes flash {
+      0% { background: #dbeafe; border-color: var(--primary); }
+      100% { background: var(--card-bg); border-color: var(--border-color); }
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .order-table-badge {
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--primary);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .order-time {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: 10px;
+    }
+
+    .order-user {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-top: 4px;
+    }
+
+    .new-badge {
+      background: var(--danger);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-left: 8px;
+    }
+
+    .order-items {
+      background: var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin: 12px 0;
+    }
+
+    .order-item-row {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .order-item-row::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      background: var(--primary);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-text {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ボタン */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      width: 100%;
+      height: 48px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-success:hover { background: #16a34a; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-sub);
+    }
+
+    .btn-outline:hover { border-color: var(--text-muted); color: var(--text-main); }
+
+    .btn-ghost {
+      background: var(--border-light);
+      border: none;
+      color: var(--text-sub);
+    }
+
+    .btn-ghost:hover { background: var(--border-color); }
+
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* メニュー管理 */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+    /* 履歴セクション */
+    .history-section {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .history-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-info {
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    .history-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+      background: #f0fdf4;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(4px);
+    }
+
     .modal-overlay.show { display: flex; }
-    .modal-box { background: #333; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; padding: 24px; }
-    .modal-box h3 { margin-top: 0; }
-    .menu-row { border-bottom: 1px solid #444; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-    .form-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+
+    .modal-box {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .menu-row {
+      border-bottom: 1px solid var(--border-light);
+      padding: 14px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .menu-row:last-child { border-bottom: none; }
+
+    .menu-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .menu-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stock-label {
+      font-size: 12px;
+      font-weight: 600;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    /* トグルスイッチ */
+    .form-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
     .form-switch input { opacity: 0; width: 0; height: 0; }
-    .form-switch .slider { position: absolute; cursor: pointer; inset: 0; background: #666; border-radius: 24px; transition: 0.3s; }
-    .form-switch .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
-    .form-switch input:checked + .slider { background: #ef4444; }
+
+    .form-switch .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #cbd5e1;
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .form-switch .slider:before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    .form-switch input:checked + .slider { background: var(--danger); }
     .form-switch input:checked + .slider:before { transform: translateX(20px); }
+
+    .sound-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .sound-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .sound-dot.on { background: var(--success); }
   </style>
 </head>
 <body>
 
-<div style="max-width:800px; margin:0 auto;">
-  <div class="header-area">
+<div class="header">
+  <div class="header-inner">
     <div class="header-left">
-      <h2>🍽 Kitchen Monitor</h2>
-      <button class="btn btn-dark" onclick="openMenuManager()">📝 メニュー管理</button>
-      <button class="btn btn-outline" id="btn-sound" onclick="toggleSound()">🔇 通知OFF</button>
+      <span class="header-title">🍽 Kitchen Monitor</span>
+      <div class="sound-indicator">
+        <span class="sound-dot" id="sound-dot"></span>
+        <span id="sound-label">通知OFF</span>
+      </div>
     </div>
-    <button class="btn btn-refresh" onclick="loadOrders(true)" id="btn-refresh">🔄 更新</button>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="toggleSound()" id="btn-sound">🔇</button>
+      <button class="btn btn-ghost" onclick="openMenuManager()">📝 メニュー</button>
+      <button class="btn btn-outline" onclick="loadOrders(true)" id="btn-refresh">🔄</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="section-label">
+    📋 未提供の注文 <span class="order-count-badge" id="order-count">0</span>
   </div>
 
   <div id="order-list">
-    <div style="text-align:center; color:#888; margin-top:40px;">読み込み中...</div>
+    <div class="empty-state">
+      <div class="empty-icon">✅</div>
+      <div class="empty-text">読み込み中...</div>
+    </div>
   </div>
 
   <div class="history-section">
-    <h5>🏁 直近の履歴</h5>
-    <div id="done-list"><div style="color:#888; font-size:14px;">まだありません</div></div>
+    <div class="section-label">🏁 提供済み</div>
+    <div id="done-list">
+      <div style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">まだありません</div>
+    </div>
   </div>
 </div>
 
 <!-- メニュー管理モーダル -->
 <div class="modal-overlay" id="menuModal">
   <div class="modal-box">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="margin:0;">📝 メニュー管理</h3>
-      <button class="btn btn-outline" onclick="closeMenuManager()">✕</button>
+    <div class="modal-header">
+      <span class="modal-title">📝 メニュー管理</span>
+      <button class="btn btn-ghost" onclick="closeMenuManager()">✕</button>
     </div>
-    <div style="color:#aaa; font-size:13px; margin-bottom:12px;">赤スイッチ＝売り切れ</div>
-    <div id="owner-menu-list"><div style="text-align:center; padding:30px 0; color:#888;">読み込み中...</div></div>
+    <div style="color:var(--text-muted); font-size:12px; margin-bottom:16px;">赤スイッチ＝売り切れ表示</div>
+    <div id="owner-menu-list">
+      <div style="text-align:center; padding:30px 0; color:var(--text-muted);">読み込み中...</div>
+    </div>
   </div>
 </div>
 
@@ -96,52 +472,66 @@
   function toggleSound() {
     isSoundOn = !isSoundOn;
     var btn = document.getElementById('btn-sound');
+    var dot = document.getElementById('sound-dot');
+    var label = document.getElementById('sound-label');
     if (isSoundOn) {
-      btn.textContent = "🔊 通知ON";
-      btn.style.borderColor = "#22c55e";
+      btn.textContent = "🔊";
+      dot.classList.add('on');
+      label.textContent = "通知ON";
       audio.volume = 0; audio.play().then(function() { audio.pause(); audio.volume = 1.0; });
     } else {
-      btn.textContent = "🔇 通知OFF";
-      btn.style.borderColor = "#666";
+      btn.textContent = "🔇";
+      dot.classList.remove('on');
+      label.textContent = "通知OFF";
     }
   }
 
   function loadOrders(manual) {
     var btn = document.getElementById('btn-refresh');
-    if (manual) { btn.textContent = "🔄 ..."; btn.classList.add('spin'); }
+    if (manual) { btn.innerHTML = '<span class="spin">🔄</span>'; }
     fetch(GAS_API_URL + "?action=getOrders")
       .then(function(r) { return r.json(); })
       .then(function(d) {
         displayOrders(d.orders || []);
-        if (manual) { btn.textContent = "🔄 更新"; btn.classList.remove('spin'); }
+        if (manual) { btn.textContent = "🔄"; }
         isFirstLoad = false;
       })
-      .catch(function() { if (manual) btn.textContent = "⚠️ エラー"; });
+      .catch(function() {
+        if (manual) btn.textContent = "⚠️";
+        setTimeout(function() { btn.textContent = "🔄"; }, 2000);
+      });
   }
 
   function displayOrders(orders) {
     var container = document.getElementById('order-list');
+    var countBadge = document.getElementById('order-count');
     var currentIds = new Set(orders.map(function(o) { return o.id; }));
     var hasNew = false;
 
+    countBadge.textContent = orders.length;
+
     if (!orders.length) {
-      container.innerHTML = '<div style="text-align:center; color:#888; margin-top:40px;">現在、未提供の注文はありません ✅</div>';
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">未提供の注文はありません</div></div>';
     } else {
       var html = "";
       orders.forEach(function(order) {
         var isNew = !previousOrderIds.has(order.id) && !isFirstLoad;
         if (isNew) hasNew = true;
         var flashClass = isNew ? " new-order-flash" : "";
-        var itemsHtml = order.items.map(function(item) { return '<div>・' + item + '</div>'; }).join("");
+
+        var itemsHtml = order.items.map(function(item) {
+          return '<div class="order-item-row">' + item + '</div>';
+        }).join("");
+
         html += '<div class="order-card' + flashClass + '" id="ocard-' + order.id + '">' +
-          '<div style="display:flex; justify-content:space-between; align-items:start;">' +
-          '<div><span class="order-table">Table ' + order.tableId + '</span><span class="order-time">' + order.time + '</span>' +
-          '<span class="order-user">' + order.user + ' 様</span>' +
-          (isNew ? '<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 8px;border-radius:4px;margin-left:8px;">NEW!</span>' : '') +
+          '<div class="order-header"><div>' +
+          '<span class="order-table-badge">Table ' + order.tableId + '</span>' +
+          '<span class="order-time">' + order.time + '</span>' +
+          (isNew ? '<span class="new-badge">NEW</span>' : '') +
+          '<div class="order-user">' + order.user + ' 様</div>' +
           '</div></div>' +
-          '<hr style="margin:8px 0; border-color:#555;">' +
           '<div class="order-items">' + itemsHtml + '</div>' +
-          '<button class="btn btn-success btn-done" onclick="completeOrder(\'' + order.id + '\',\'' + order.user + '\')">提供完了</button>' +
+          '<button class="btn btn-success" onclick="completeOrder(\'' + order.id + '\',\'' + order.user + '\')">✅ 提供完了</button>' +
           '</div>';
       });
       container.innerHTML = html;
@@ -153,29 +543,58 @@
 
   function completeOrder(orderId, user) {
     var card = document.getElementById('ocard-' + orderId);
-    if (card) card.style.opacity = "0.3";
-    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify({ action: "completeOrder", orderId: orderId }) })
+    if (card) { card.style.opacity = "0.4"; card.style.transform = "scale(0.98)"; }
+
+    fetch(GAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "completeOrder", orderId: orderId })
+    })
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (d.status === "success") {
-          if (card) card.remove();
-          if (!document.querySelectorAll('.order-card').length) loadOrders();
+          if (card) {
+            card.style.transition = "all 0.3s";
+            card.style.opacity = "0";
+            card.style.maxHeight = "0";
+            card.style.padding = "0";
+            card.style.margin = "0";
+            card.style.overflow = "hidden";
+            setTimeout(function() { card.remove(); updateOrderCount(); }, 300);
+          }
           addDoneHistory(user);
-        } else { alert("エラー"); loadOrders(); }
+        } else {
+          alert("エラーが発生しました");
+          loadOrders();
+        }
       });
+  }
+
+  function updateOrderCount() {
+    var count = document.querySelectorAll('.order-card').length;
+    document.getElementById('order-count').textContent = count;
+    if (count === 0) {
+      document.getElementById('order-list').innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">未提供の注文はありません</div></div>';
+    }
   }
 
   function addDoneHistory(user) {
     var list = document.getElementById('done-list');
     if (list.querySelector('div[style]')) list.innerHTML = "";
     var now = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    list.insertAdjacentHTML('afterbegin', '<div class="history-card"><div style="display:flex; justify-content:space-between; font-size:13px; color:#888;"><span>' + now + ' - ' + user + '</span><span>完了</span></div></div>');
+    list.insertAdjacentHTML('afterbegin',
+      '<div class="history-card">' +
+      '<span class="history-info">' + now + ' — ' + user + ' 様</span>' +
+      '<span class="history-badge">✅ 完了</span>' +
+      '</div>'
+    );
   }
 
-  // メニュー管理
   function openMenuManager() {
     document.getElementById('menuModal').classList.add('show');
-    fetch(GAS_API_URL + "?action=getMenu").then(function(r) { return r.json(); }).then(function(d) { renderOwnerMenu(d); });
+    fetch(GAS_API_URL + "?action=getMenu")
+      .then(function(r) { return r.json(); })
+      .then(function(d) { renderOwnerMenu(d); });
   }
 
   function closeMenuManager() {
@@ -188,10 +607,10 @@
     items.forEach(function(i) {
       var ch = i.isSoldOut ? "checked" : "";
       var st = i.isSoldOut ? "売切" : "販売中";
-      var cl = i.isSoldOut ? "color:#ef4444;" : "color:#22c55e;";
-      html += '<div class="menu-row"><div><strong>' + i.name + '</strong></div>' +
-        '<div style="display:flex; align-items:center; gap:12px;">' +
-        '<span style="font-size:13px;' + cl + '" id="st-' + i.id + '">' + st + '</span>' +
+      var cl = i.isSoldOut ? "color:var(--danger);" : "color:var(--success);";
+      html += '<div class="menu-row"><div class="menu-name">' + i.name + '</div>' +
+        '<div class="menu-right">' +
+        '<span class="stock-label" style="' + cl + '" id="st-' + i.id + '">' + st + '</span>' +
         '<label class="form-switch"><input type="checkbox" ' + ch + ' onchange="toggleStock(\'' + i.id + '\')"><span class="slider"></span></label>' +
         '</div></div>';
     });
@@ -203,11 +622,15 @@
     var st = document.getElementById('st-' + id);
     var isSoldOut = checkbox.checked;
     st.textContent = "...";
-    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify({ action: "updateStock", itemId: id, isSoldOut: isSoldOut }) })
+    fetch(GAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "updateStock", itemId: id, isSoldOut: isSoldOut })
+    })
       .then(function(r) { return r.json(); })
       .then(function() {
         st.textContent = isSoldOut ? "売切" : "販売中";
-        st.style.color = isSoldOut ? "#ef4444" : "#22c55e";
+        st.style.color = isSoldOut ? "var(--danger)" : "var(--success)";
       });
   }
 </script>
