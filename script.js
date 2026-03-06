@@ -508,7 +508,69 @@ function renderMyTaste() {
         renderTasteChart(tasteData);
       }
     });
+renderTastePeriodSelector();
 }
+
+function renderTastePeriodSelector() {
+  if (document.getElementById("taste-period-selector")) return;
+  var chartContainer = document.querySelector(".chart-container");
+  if (!chartContainer) return;
+
+  var wrapper = document.createElement("div");
+  wrapper.id = "taste-period-selector";
+  wrapper.style.cssText = "text-align:center;margin-bottom:12px;";
+
+  var select = document.createElement("select");
+  select.id = "taste-period";
+  select.style.cssText = "padding:8px 16px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#374151;cursor:pointer;";
+  select.innerHTML =
+    '<option value="all">今までの全期間の分析</option>' +
+    '<option value="30">直近1ヶ月の分析</option>' +
+    '<option value="90">直近3ヶ月の分析</option>' +
+    '<option value="180">直近6ヶ月の分析</option>';
+
+  select.addEventListener("change", function() {
+    loadTasteByPeriod(this.value);
+  });
+
+  wrapper.appendChild(select);
+  chartContainer.parentNode.insertBefore(wrapper, chartContainer);
+}
+
+function loadTasteByPeriod(period) {
+  var userId = currentUserId;
+  if (!userId) {
+    try { var p = liff.getDecodedIDToken(); if (p) userId = p.sub || ""; } catch(e) {}
+  }
+  if (!userId) return;
+
+  var chartContainer = document.querySelector(".chart-container");
+  if (chartContainer) {
+    chartContainer.style.opacity = "0.5";
+  }
+
+  var url = GAS_API_URL + "?action=getTasteAnalysis&userId=" + encodeURIComponent(userId);
+  if (period !== "all") {
+    url += "&days=" + period;
+  }
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (chartContainer) chartContainer.style.opacity = "1";
+      if (data.status === "success" && data.tasteData) {
+        renderTasteChart(data.tasteData);
+      } else {
+        showToast("この期間のデータがありません");
+      }
+    })
+    .catch(function(err) {
+      if (chartContainer) chartContainer.style.opacity = "1";
+      console.error("Taste period error:", err);
+      showToast("データ取得に失敗しました");
+    });
+}
+
 
 function renderLevelDisplay() {
   var cur = getLevel(totalOrderCount);
