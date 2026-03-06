@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - 管理画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --primary-light: #dbeafe;
+      --success: #22c55e;
+      --success-light: #f0fdf4;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --warning: #f59e0b;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --border-light: #f1f5f9;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ヘッダー */
+    .header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 20px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .header-inner {
+      max-width: 900px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header-title { font-size: 18px; font-weight: 700; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* タブ */
+    .tab-bar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex; overflow-x: auto;
+      max-width: 900px; margin: 0 auto;
+    }
+    .tab-btn {
+      flex: 1; padding: 14px 8px; border: none; background: none;
+      font-size: 13px; font-weight: 600; color: var(--text-muted);
+      cursor: pointer; border-bottom: 3px solid transparent;
+      font-family: inherit; white-space: nowrap; transition: all 0.15s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-btn:hover { color: var(--text-sub); }
+
+    .tab-panel { display: none; max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+    .tab-panel.active { display: block; }
+
+    /* 共通 */
+    .container { max-width: 900px; margin: 0 auto; }
+    .section-label {
+      font-size: 13px; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+    }
+    .badge {
+      font-size: 12px; font-weight: 700; padding: 2px 8px;
+      border-radius: 10px; min-width: 22px; text-align: center;
+    }
+    .badge-primary { background: var(--primary); color: #fff; }
+    .badge-success { background: var(--success); color: #fff; }
+
+    /* カード */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius); padding: 18px;
+      box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+
+    /* ボタン */
+    .btn {
+      padding: 8px 16px; border: none; border-radius: var(--radius-sm);
+      cursor: pointer; font-weight: 600; font-family: inherit;
+      font-size: 13px; transition: all 0.15s; display: inline-flex;
+      align-items: center; gap: 6px;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: #16a34a; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-sub); }
+    .btn-outline:hover { border-color: var(--text-muted); color: var(--text-main); }
+    .btn-ghost { background: var(--border-light); border: none; color: var(--text-sub); }
+    .btn-ghost:hover { background: var(--border-color); }
+    .btn-lg { padding: 12px 20px; font-size: 15px; font-weight: 700; width: 100%; justify-content: center; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* フォーム */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 10px 14px; border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm); font-size: 14px; font-family: inherit;
+      color: var(--text-main); background: #fff; transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: var(--primary);
+    }
+    .form-textarea { min-height: 80px; resize: vertical; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    /* 注文カード（オーダータブ） */
+    .order-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius); margin-bottom: 14px; padding: 18px;
+      box-shadow: var(--shadow); border-left: 4px solid var(--primary);
+      transition: all 0.3s;
+    }
+    .new-order-flash { animation: flash 1.5s ease-out; }
+    @keyframes flash {
+      0% { background: var(--primary-light); } 100% { background: var(--card-bg); }
+    }
+    .order-table-badge {
+      font-size: 13px; font-weight: 700; background: var(--primary);
+      color: #fff; padding: 4px 10px; border-radius: 6px;
+    }
+    .order-time { font-size: 13px; color: var(--text-muted); margin-left: 10px; }
+    .order-user { font-size: 13px; color: var(--text-sub); margin-top: 4px; }
+    .new-badge {
+      background: var(--danger); color: #fff; font-size: 11px;
+      font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-left: 8px;
+    }
+    .order-items {
+      background: var(--border-light); border-radius: var(--radius-sm);
+      padding: 12px 14px; margin: 12px 0;
+    }
+    .order-item-row {
+      font-size: 15px; font-weight: 600; padding: 4px 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .order-item-row::before {
+      content: ""; width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%; flex-shrink: 0;
+    }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 14px; font-weight: 500; }
+    .history-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm); margin-bottom: 8px; padding: 12px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .history-info { font-size: 13px; color: var(--text-sub); }
+    .history-badge {
+      font-size: 12px; font-weight: 600; color: var(--success);
+      background: var(--success-light); padding: 3px 10px; border-radius: 6px;
+    }
+
+    /* メニュー管理 */
+    .menu-item-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+      box-shadow: var(--shadow); display: flex; justify-content: space-between;
+      align-items: center; gap: 14px;
+    }
+    .menu-item-info { flex: 1; }
+    .menu-item-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .menu-item-meta { font-size: 12px; color: var(--text-sub); display: flex; gap: 12px; flex-wrap: wrap; }
+    .menu-item-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .sold-out-label { font-size: 12px; font-weight: 600; }
+
+    .form-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .form-switch input { opacity: 0; width: 0; height: 0; }
+    .form-switch .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #cbd5e1; border-radius: 24px; transition: 0.3s;
+    }
+    .form-switch .slider:before {
+      content: ""; position: absolute; height: 18px; width: 18px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .form-switch input:checked + .slider { background: var(--danger); }
+    .form-switch input:checked + .slider:before { transform: translateX(20px); }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 1000;
+      justify-content: center; align-items: center;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: var(--card-bg); border-radius: var(--radius);
+      width: 90%; max-width: 600px; max-height: 85vh;
+      overflow-y: auto; padding: 24px; box-shadow: var(--shadow-md);
+    }
+    .modal-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 20px;
+    }
+    .modal-title { font-size: 16px; font-weight: 700; }
+
+    .sound-indicator { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+    .sound-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+    .sound-dot.on { background: var(--success); }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .toast-msg {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #fff; padding: 10px 24px;
+      border-radius: 20px; font-size: 13px; font-weight: 600;
+      z-index: 2000; opacity: 1; transition: opacity 0.3s;
+    }
+    .toast-msg.out { opacity: 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <span class="header-title">⚙️ Admin</span>
+    <div class="header-actions">
+      <div class="sound-indicator">
+        <span class="sound-dot" id="sound-dot"></span>
+        <span id="sound-label">通知OFF</span>
+      </div>
+      <button class="btn btn-ghost" onclick="toggleSound()" id="btn-sound">🔇</button>
+      <button class="btn btn-outline" onclick="refreshCurrentTab()" id="btn-refresh">🔄</button>
+    </div>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('orders')">📋 オーダー</button>
+  <button class="tab-btn" onclick="switchTab('menu')">📝 メニュー管理</button>
+</div>
+
+<!-- ======== オーダータブ ======== -->
+<div class="tab-panel active" id="panel-orders">
+  <div class="section-label">📋 未提供の注文 <span class="badge badge-primary" id="order-count">0</span></div>
+  <div id="order-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
+  </div>
+  <div style="margin-top:40px; padding-top:20px; border-top:1px solid var(--border-color);">
+    <div class="section-label">🏁 提供済み</div>
+    <div id="done-list">
+      <div style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">まだありません</div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== メニュー管理タブ ======== -->
+<div class="tab-panel" id="panel-menu">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <div class="section-label" style="margin-bottom:0;">📝 メニュー一覧</div>
+    <button class="btn btn-primary" onclick="openMenuForm()">＋ 新規追加</button>
+  </div>
+  <div id="menu-list">
+    <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
+  </div>
+</div>
+
+<!-- ======== メニュー編集モーダル ======== -->
+<div class="modal-overlay" id="menuFormModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="menu-form-title">メニュー追加</span>
+      <button class="btn btn-ghost" onclick="closeMenuForm()">✕</button>
+    </div>
+    <form id="menu-form" onsubmit="saveMenuItem(event)">
+      <input type="hidden" id="mf-mode" value="add">
+      <input type="hidden" id="mf-original-id" value="">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">アイテムID *</label>
+          <input class="form-input" id="mf-id" required placeholder="例: W005">
+        </div>
+        <div class="form-group">
+          <label class="form-label">カテゴリ *</label>
+          <input class="form-input" id="mf-category" required placeholder="例: Whisky">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">商品名 *</label>
+        <input class="form-input" id="mf-name" required placeholder="例: 山崎12年">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">価格 *</label>
+          <input class="form-input" type="number" id="mf-price" required placeholder="例: 1500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">表示順</label>
+          <input class="form-input" type="number" id="mf-sort" value="0" placeholder="小さいほど上">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">フレーバー説明</label>
+        <input class="form-input" id="mf-flavor" placeholder="例: 華やか、バニラ、オレンジ">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">味覚パラメータ（各0〜10）</label>
+        <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px;">
+          <div><label class="form-label" style="font-size:11px;">塩味</label><input class="form-input" type="number" id="mf-salty" min="0" max="10" value="0"></div>
+          <div><label class="form-label" style="font-size:11px;">甘味</label><input class="form-input" type="number" id="mf-sweet" min="0" max="10" value="0"></div>
+          <div><label class="form-label" style="font-size:11px;">酸味</label><input class="form-input" type="number" id="mf-sour" min="0" max="10" value="0"></div>
+          <div><label class="form-label" style="font-size:11px;">苦味</label><input class="form-input" type="number" id="mf-bitter" min="0" max="10" value="0"></div>
+          <div><label class="form-label" style="font-size:11px;">コク</label><input class="form-input" type="number" id="mf-rich" min="0" max="10" value="0"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ペアリングフード</label>
+        <input class="form-input" id="mf-pairing" placeholder="例: チーズ、ナッツ">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">画像URL</label>
+        <input class="form-input" id="mf-image" placeholder="Google Drive URL など">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">オプション（カンマ区切り）</label>
+        <input class="form-input" id="mf-options" placeholder="例: ロック:0, 水割り:0, ソーダ割り:100">
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:20px;">
+        <button type="submit" class="btn btn-primary btn-lg" style="flex:1;">保存</button>
+        <button type="button" class="btn btn-outline btn-lg" style="flex:0.5;" onclick="closeMenuForm()">キャンセル</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ======== 削除確認モーダル ======== -->
+<div class="modal-overlay" id="deleteConfirmModal">
+  <div class="modal-box" style="max-width:400px; text-align:center;">
+    <div style="font-size:40px; margin-bottom:12px;">⚠️</div>
+    <div style="font-size:15px; font-weight:700; margin-bottom:8px;">このメニューを削除しますか？</div>
+    <div style="font-size:13px; color:var(--text-sub); margin-bottom:20px;" id="delete-item-name"></div>
+    <div style="display:flex; gap:12px;">
+      <button class="btn btn-danger btn-lg" style="flex:1;" onclick="confirmDelete()">削除する</button>
+      <button class="btn btn-outline btn-lg" style="flex:1;" onclick="closeDeleteConfirm()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+// ============================================================
+// グローバル
+// ============================================================
+var currentTab = "orders";
+var previousOrderIds = new Set();
+var isSoundOn = false;
+var isFirstLoad = true;
+var audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+var allMenuData = [];
+var deleteTargetId = "";
+var orderInterval = null;
+
+window.onload = function() {
+  if (typeof GAS_API_URL === 'undefined') { alert("config.js error"); return; }
+  loadOrders();
+  orderInterval = setInterval(function() { if (currentTab === "orders") loadOrders(false); }, 15000);
+};
+
+// ============================================================
+// タブ切り替え
+// ============================================================
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+  document.querySelectorAll(".tab-panel").forEach(function(p) { p.classList.remove("active"); });
+  document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add("active");
+  document.getElementById("panel-" + tab).classList.add("active");
+
+  if (tab === "menu") loadMenuList();
+  if (tab === "orders") loadOrders(true);
+}
+
+function refreshCurrentTab() {
+  if (currentTab === "orders") loadOrders(true);
+  if (currentTab === "menu") loadMenuList();
+}
+
+// ============================================================
+// トースト
+// ============================================================
+function showToast(msg) {
+  var el = document.createElement("div");
+  el.className = "toast-msg";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.classList.add("out"); }, 1800);
+  setTimeout(function() { el.remove(); }, 2200);
+}
+
+// ============================================================
+// 通知音
+// ============================================================
+function toggleSound() {
+  isSoundOn = !isSoundOn;
+  var btn = document.getElementById("btn-sound");
+  var dot = document.getElementById("sound-dot");
+  var label = document.getElementById("sound-label");
+  if (isSoundOn) {
+    btn.textContent = "🔊"; dot.classList.add("on"); label.textContent = "通知ON";
+    audio.volume = 0; audio.play().then(function() { audio.pause(); audio.volume = 1.0; });
+  } else {
+    btn.textContent = "🔇"; dot.classList.remove("on"); label.textContent = "通知OFF";
+  }
+}
+
+// ============================================================
+// オーダータブ
+// ============================================================
+function loadOrders(manual) {
+  var btn = document.getElementById("btn-refresh");
+  if (manual) btn.innerHTML = '<span class="spin">🔄</span>';
+  fetch(GAS_API_URL + "?action=getOrders")
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      displayOrders(d.orders || []);
+      if (manual) btn.textContent = "🔄";
+      isFirstLoad = false;
+    })
+    .catch(function() { if (manual) { btn.textContent = "⚠️"; setTimeout(function() { btn.textContent = "🔄"; }, 2000); } });
+}
+
+function displayOrders(orders) {
+  var container = document.getElementById("order-list");
+  var countBadge = document.getElementById("order-count");
+  var currentIds = new Set(orders.map(function(o) { return o.id; }));
+  var hasNew = false;
+  countBadge.textContent = orders.length;
+
+  if (!orders.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">未提供の注文はありません</div></div>';
+  } else {
+    var html = "";
+    orders.forEach(function(order) {
+      var isNew = !previousOrderIds.has(order.id) && !isFirstLoad;
+      if (isNew) hasNew = true;
+      var flashClass = isNew ? " new-order-flash" : "";
+      var itemsHtml = order.items.map(function(item) { return '<div class="order-item-row">' + item + '</div>'; }).join("");
+      html += '<div class="order-card' + flashClass + '" id="ocard-' + order.id + '">' +
+        '<div style="margin-bottom:12px;"><span class="order-table-badge">Table ' + order.tableId + '</span>' +
+        '<span class="order-time">' + order.time + '</span>' +
+        (isNew ? '<span class="new-badge">NEW</span>' : '') +
+        '<div class="order-user">' + order.user + ' 様</div></div>' +
+        '<div class="order-items">' + itemsHtml + '</div>' +
+        '<button class="btn btn-success btn-lg" onclick="completeOrder(\'' + order.id + '\',\'' + order.user + '\')">✅ 提供完了</button></div>';
+    });
+    container.innerHTML = html;
+  }
+  if (hasNew && isSoundOn) { audio.currentTime = 0; audio.play().catch(function() {}); }
+  previousOrderIds = currentIds;
+}
+
+function completeOrder(orderId, user) {
+  var card = document.getElementById("ocard-" + orderId);
+  if (card) { card.style.opacity = "0.4"; card.style.transform = "scale(0.98)"; }
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "completeOrder", orderId: orderId })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.status === "success") {
+      if (card) {
+        card.style.transition = "all 0.3s"; card.style.opacity = "0";
+        card.style.maxHeight = "0"; card.style.padding = "0"; card.style.margin = "0"; card.style.overflow = "hidden";
+        setTimeout(function() { card.remove(); updateOrderCount(); }, 300);
+      }
+      addDoneHistory(user);
+    } else { loadOrders(true); }
+  });
+}
+
+function updateOrderCount() {
+  var count = document.querySelectorAll(".order-card").length;
+  document.getElementById("order-count").textContent = count;
+  if (count === 0) {
+    document.getElementById("order-list").innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">未提供の注文はありません</div></div>';
+  }
+}
+
+function addDoneHistory(user) {
+  var list = document.getElementById("done-list");
+  if (list.querySelector("div[style]")) list.innerHTML = "";
+  var now = new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  list.insertAdjacentHTML("afterbegin",
+    '<div class="history-card"><span class="history-info">' + now + ' — ' + user + ' 様</span><span class="history-badge">✅ 完了</span></div>');
+}
+
+// ============================================================
+// メニュー管理タブ
+// ============================================================
+function loadMenuList() {
+  var container = document.getElementById("menu-list");
+  container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>';
+
+  fetch(GAS_API_URL + "?action=getMenu")
+    .then(function(r) { return r.json(); })
+    .then(function(items) {
+      allMenuData = items;
+      renderMenuList(items);
+    })
+    .catch(function() { container.innerHTML = '<div class="empty-state"><div class="empty-text">読み込みに失敗しました</div></div>'; });
+}
+
+function renderMenuList(items) {
+  var container = document.getElementById("menu-list");
+  if (!items.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">メニューがありません</div></div>';
+    return;
+  }
+  var html = "";
+  items.forEach(function(item) {
+    var soldLabel = item.isSoldOut ? '<span class="sold-out-label" style="color:var(--danger);">売切</span>' : '<span class="sold-out-label" style="color:var(--success);">販売中</span>';
+    var ch = item.isSoldOut ? "checked" : "";
+    html += '<div class="menu-item-card">' +
+      '<div class="menu-item-info">' +
+      '<div class="menu-item-name">' + item.name + '</div>' +
+      '<div class="menu-item-meta">' +
+      '<span>ID: ' + item.id + '</span>' +
+      '<span>¥' + Number(item.price).toLocaleString() + '</span>' +
+      '<span>' + item.category + '</span>' +
+      '</div></div>' +
+      '<div class="menu-item-actions">' +
+      soldLabel +
+      '<label class="form-switch"><input type="checkbox" ' + ch + ' onchange="toggleStock(\'' + item.id + '\', this)"><span class="slider"></span></label>' +
+      '<button class="btn btn-outline btn-sm" onclick="openEditForm(\'' + item.id + '\')">編集</button>' +
+      '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="openDeleteConfirm(\'' + item.id + '\',\'' + item.name.replace(/'/g, "\\'") + '\')">🗑</button>' +
+      '</div></div>';
+  });
+  container.innerHTML = html;
+}
+
+function toggleStock(id, checkbox) {
+  var isSoldOut = checkbox.checked;
+  var label = checkbox.closest(".menu-item-actions").querySelector(".sold-out-label");
+  label.textContent = "...";
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "updateStock", itemId: id, isSoldOut: isSoldOut })
+  }).then(function(r) { return r.json(); }).then(function() {
+    label.textContent = isSoldOut ? "売切" : "販売中";
+    label.style.color = isSoldOut ? "var(--danger)" : "var(--success)";
+    showToast(isSoldOut ? "売り切れに変更しました" : "販売中に変更しました");
+  });
+}
+
+// メニューフォーム
+function openMenuForm() {
+  document.getElementById("menu-form-title").textContent = "メニュー追加";
+  document.getElementById("mf-mode").value = "add";
+  document.getElementById("mf-original-id").value = "";
+  document.getElementById("menu-form").reset();
+  document.getElementById("mf-sort").value = "0";
+  document.getElementById("mf-salty").value = "0";
+  document.getElementById("mf-sweet").value = "0";
+  document.getElementById("mf-sour").value = "0";
+  document.getElementById("mf-bitter").value = "0";
+  document.getElementById("mf-rich").value = "0";
+  document.getElementById("mf-id").readOnly = false;
+  document.getElementById("menuFormModal").classList.add("show");
+}
+
+function openEditForm(itemId) {
+  var item = allMenuData.find(function(i) { return i.id === itemId; });
+  if (!item) return;
+  document.getElementById("menu-form-title").textContent = "メニュー編集";
+  document.getElementById("mf-mode").value = "edit";
+  document.getElementById("mf-original-id").value = item.id;
+  document.getElementById("mf-id").value = item.id;
+  document.getElementById("mf-id").readOnly = true;
+  document.getElementById("mf-name").value = item.name;
+  document.getElementById("mf-price").value = item.price;
+  document.getElementById("mf-category").value = item.category;
+  document.getElementById("mf-sort").value = item.sortOrder || 0;
+  document.getElementById("mf-flavor").value = item.flavor || "";
+  document.getElementById("mf-salty").value = item.params.salty || 0;
+  document.getElementById("mf-sweet").value = item.params.sweet || 0;
+  document.getElementById("mf-sour").value = item.params.sour || 0;
+  document.getElementById("mf-bitter").value = item.params.bitter || 0;
+  document.getElementById("mf-rich").value = item.params.rich || 0;
+  document.getElementById("mf-pairing").value = item.pairing || "";
+  document.getElementById("mf-image").value = item.image || "";
+  document.getElementById("mf-options").value = item.optionsStr || "";
+  document.getElementById("menuFormModal").classList.add("show");
+}
+
+function closeMenuForm() {
+  document.getElementById("menuFormModal").classList.remove("show");
+}
+
+function saveMenuItem(e) {
+  e.preventDefault();
+  var mode = document.getElementById("mf-mode").value;
+  var payload = {
+    action: mode === "edit" ? "updateMenuItem" : "addMenuItem",
+    item: {
+      item_id: document.getElementById("mf-id").value.trim(),
+      item_name: document.getElementById("mf-name").value.trim(),
+      price: Number(document.getElementById("mf-price").value),
+      category: document.getElementById("mf-category").value.trim(),
+      sort_order: Number(document.getElementById("mf-sort").value) || 0,
+      flavor_profile: document.getElementById("mf-flavor").value.trim(),
+      p_salty: Number(document.getElementById("mf-salty").value) || 0,
+      p_sweet: Number(document.getElementById("mf-sweet").value) || 0,
+      p_sour: Number(document.getElementById("mf-sour").value) || 0,
+      p_bitter: Number(document.getElementById("mf-bitter").value) || 0,
+      p_rich: Number(document.getElementById("mf-rich").value) || 0,
+      pairing_food: document.getElementById("mf-pairing").value.trim(),
+      image_url: document.getElementById("mf-image").value.trim(),
+      options: document.getElementById("mf-options").value.trim(),
+      is_active: true,
+      is_soldout: false
+    }
+  };
+  if (mode === "edit") payload.item.item_id = document.getElementById("mf-original-id").value;
+
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.status === "success") {
+      showToast(mode === "edit" ? "更新しました" : "追加しました");
+      closeMenuForm();
+      loadMenuList();
+    } else {
+      showToast("エラー: " + (d.message || ""));
+    }
+  }).catch(function() { showToast("通信エラー"); });
+}
+
+// 削除
+function openDeleteConfirm(id, name) {
+  deleteTargetId = id;
+  document.getElementById("delete-item-name").textContent = name;
+  document.getElementById("deleteConfirmModal").classList.add("show");
+}
+
+function closeDeleteConfirm() {
+  document.getElementById("deleteConfirmModal").classList.remove("show");
+  deleteTargetId = "";
+}
+
+function confirmDelete() {
+  if (!deleteTargetId) return;
+  fetch(GAS_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "deleteMenuItem", itemId: deleteTargetId })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.status === "success") {
+      showToast("削除しました");
+      closeDeleteConfirm();
+      loadMenuList();
+    } else { showToast("エラー: " + (d.message || "")); }
+  }).catch(function() { showToast("通信エラー"); });
+}
+</script>
+</body>
+</html>
