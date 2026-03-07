@@ -264,30 +264,29 @@ function filterCategory(cat) {
 
   var menuItems = document.getElementById("menu-items");
 
-  // フェーズ1: 現在のコンテンツをスライドアウト
+  // フェーズ1: スライドアウト
   menuItems.classList.add(goingRight ? "slide-out-left" : "slide-out-right");
 
   setTimeout(function() {
-    // カテゴリ切替
     currentCategory = cat;
     buildCategoryTabs();
     renderMenu();
 
-    // フェーズ2: トランジション無効にして反対側に配置
+    // フェーズ2: 反対側に配置（控えめな距離）
     menuItems.classList.remove("slide-out-left", "slide-out-right");
     menuItems.classList.add("no-transition");
-    menuItems.style.transform = goingRight ? "translateX(100%)" : "translateX(-100%)";
+    menuItems.style.transform = goingRight ? "translateX(40px)" : "translateX(-40px)";
     menuItems.style.opacity = "0";
 
-    // 強制リフロー
     void menuItems.offsetWidth;
 
-    // フェーズ3: トランジション有効にして中央にスライドイン
+    // フェーズ3: スライドイン
     menuItems.classList.remove("no-transition");
     menuItems.style.transform = "translateX(0)";
     menuItems.style.opacity = "1";
-  }, 250);
+  }, 200);
 }
+
 
 
 
