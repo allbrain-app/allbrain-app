@@ -1267,6 +1267,14 @@ function generateTasteImage() {
 var billData = null;
 var billRequested = false;
 
+
+function closeBill() {
+  var modal = document.getElementById("billModal");
+  modal.classList.remove("show");
+  document.body.style.overflow = ""; 
+}
+
+
 function openBill() {
   var modal = document.getElementById("billModal");
   modal.classList.add("show");
