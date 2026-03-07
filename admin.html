@@ -303,6 +303,7 @@
   <button class="tab-btn" onclick="switchTab('menu')">📝 メニュー管理</button>
   <button class="tab-btn" onclick="switchTab('customers')">👥 顧客管理</button>
   <button class="tab-btn" onclick="switchTab('sales')">📊 売上分析</button>
+  <button class="tab-btn" onclick="switchTab('broadcast')">📣 配信管理</button>
   <button class="tab-btn" onclick="switchTab('settings')">⚙️ 設定</button>
 </div>
 
@@ -346,6 +347,97 @@
   <div class="section-label">👥 顧客一覧 <span class="badge badge-primary" id="customer-count">0</span></div>
   <div id="customer-list">
     <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
+  </div>
+</div>
+
+<!-- ======== 配信管理タブ ======== -->
+<div class="tab-panel" id="panel-broadcast">
+  
+  <!-- 配信モード切替 -->
+  <div style="display:flex; gap:8px; margin-bottom:16px;">
+    <button class="segment-btn active" id="bc-mode-manual" onclick="switchBcMode('manual')">✏️ フリー入力</button>
+    <button class="segment-btn" id="bc-mode-template" onclick="switchBcMode('template')">📋 テンプレート</button>
+  </div>
+
+  <!-- セグメント選択 -->
+  <div class="form-group">
+    <label class="form-label">配信対象セグメント</label>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="segment-btn active" onclick="selectBcSegment('all', this)">👥 全員</button>
+      <button class="segment-btn" onclick="selectBcSegment('vip', this)">👑 VIP</button>
+      <button class="segment-btn" onclick="selectBcSegment('active', this)">✅ アクティブ</button>
+      <button class="segment-btn" onclick="selectBcSegment('dormant', this)">💤 休眠</button>
+      <button class="segment-btn" onclick="selectBcSegment('new', this)">🆕 新規</button>
+    </div>
+    <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">
+      対象人数: <span id="bc-target-count" style="font-weight:700;">-</span>名
+    </div>
+  </div>
+
+  <!-- フリー入力モード -->
+  <div id="bc-manual-form">
+    <div class="form-group">
+      <label class="form-label">メッセージ内容</label>
+      <textarea class="form-input" id="bc-message" rows="6" placeholder="配信するメッセージを入力してください...&#10;&#10;例: 今週末はスペシャルウイスキーナイト！&#10;普段は入荷できないレアボトルを多数ご用意しています。&#10;ぜひお越しください🥃" style="resize:vertical;"></textarea>
+      <div style="display:flex; justify-content:space-between; margin-top:4px;">
+        <span style="font-size:11px; color:var(--text-muted);">LINE Push Message として送信されます</span>
+        <span style="font-size:11px; color:var(--text-muted);"><span id="bc-char-count">0</span>/500文字</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- テンプレートモード -->
+  <div id="bc-template-form" style="display:none;">
+    <div class="form-group">
+      <label class="form-label">テンプレート選択</label>
+      <select class="form-select" id="bc-template-select" onchange="loadTemplatePreview()">
+        <option value="">テンプレートを選択...</option>
+        <option value="new_thanks">🎉 初来店お礼</option>
+        <option value="remind_7">📩 7日リマインド</option>
+        <option value="retention">🔥 引き止め（30日）</option>
+        <option value="revive_60">💫 復活促進（60日）</option>
+        <option value="pr">📢 PR・イベント告知</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">テンプレート内容（プレビュー）</label>
+      <div id="bc-template-preview" style="background:var(--border-light); border-radius:var(--radius-sm); padding:14px; min-height:80px; font-size:13px; color:var(--text-sub); line-height:1.7;">
+        テンプレートを選択すると、ここにプレビューが表示されます
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="bc-ai-personalize" checked style="width:18px; height:18px;">
+        <span class="form-label" style="margin-bottom:0;">🤖 AIでパーソナライズする</span>
+      </label>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px; margin-left:26px;">
+        Gemini が顧客ごとに文面を最適化します（送信に少し時間がかかります）
+      </div>
+    </div>
+  </div>
+
+  <!-- プレビュー＆送信 -->
+  <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:18px; margin-top:12px;">
+    <div class="section-label" style="margin-bottom:10px;">📱 送信プレビュー</div>
+    <div id="bc-preview" style="background:var(--border-light); border-radius:var(--radius-sm); padding:14px; min-height:60px; font-size:13px; line-height:1.7; white-space:pre-wrap; color:var(--text-sub);">
+      メッセージを入力すると、ここにプレビューが表示されます
+    </div>
+  </div>
+
+  <div style="margin-top:16px; display:flex; gap:12px;">
+    <button class="btn btn-primary btn-lg" style="flex:1;" onclick="sendBroadcast()" id="bc-send-btn">
+      📣 配信する
+    </button>
+  </div>
+
+  <!-- 配信履歴 -->
+  <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--border-color);">
+    <div class="section-label">📜 配信履歴</div>
+    <div id="bc-history">
+      <div style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">配信履歴はまだありません</div>
+    </div>
   </div>
 </div>
 
@@ -559,6 +651,7 @@ function switchTab(tab) {
   if (tab === "customers") loadCustomers();
   if (tab === "settings") loadSettings();
   if (tab === "sales") loadSales();
+  if (tab === "broadcast") loadBroadcastTab();
 }
 
 function refreshCurrentTab() {
@@ -567,6 +660,7 @@ function refreshCurrentTab() {
   if (currentTab === "customers") loadCustomers();
   if (currentTab === "settings") loadSettings();
   if (currentTab === "sales") loadSales();
+  if (currentTab === "broadcast") loadBroadcastTab();
 }
 
 function showToast(msg) {
@@ -1563,6 +1657,259 @@ function switchTheme(mode) {
     console.error('Theme save error:', e);
     showToast('通信エラーが発生しました');
   });
+}
+
+// ============================================================
+// 配信管理タブ
+// ============================================================
+var bcCurrentSegment = "all";
+var bcCurrentMode = "manual"; // "manual" | "template"
+var bcTemplateCache = {};
+
+// 文字数カウント
+(function() {
+  var ta = document.getElementById("bc-message");
+  if (ta) {
+    ta.addEventListener("input", function() {
+      var count = this.value.length;
+      document.getElementById("bc-char-count").textContent = count;
+      // プレビュー更新
+      var preview = document.getElementById("bc-preview");
+      preview.textContent = this.value || "メッセージを入力すると、ここにプレビューが表示されます";
+      preview.style.color = this.value ? "var(--text-main)" : "var(--text-sub)";
+    });
+  }
+})();
+
+function switchBcMode(mode) {
+  bcCurrentMode = mode;
+  document.getElementById("bc-mode-manual").classList.toggle("active", mode === "manual");
+  document.getElementById("bc-mode-template").classList.toggle("active", mode === "template");
+  document.getElementById("bc-manual-form").style.display = mode === "manual" ? "block" : "none";
+  document.getElementById("bc-template-form").style.display = mode === "template" ? "block" : "none";
+
+  // プレビューをリセット
+  var preview = document.getElementById("bc-preview");
+  preview.textContent = "メッセージを入力すると、ここにプレビューが表示されます";
+  preview.style.color = "var(--text-sub)";
+}
+
+function selectBcSegment(segment, btn) {
+  bcCurrentSegment = segment;
+  // ボタンのアクティブ状態を切り替え
+  var parent = btn.parentElement;
+  parent.querySelectorAll(".segment-btn").forEach(function(b) { b.classList.remove("active"); });
+  btn.classList.add("active");
+
+  // 対象人数を取得
+  loadSegmentCount(segment);
+}
+
+function loadSegmentCount(segment) {
+  var countEl = document.getElementById("bc-target-count");
+  countEl.textContent = "...";
+  
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getCustomerList", segment: segment })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success" && d.customers) {
+        // LINE user IDを持つ顧客のみカウント
+        var withLineId = d.customers.filter(function(c) { return c.line_user_id && c.line_user_id !== ""; });
+        countEl.textContent = withLineId.length;
+      } else {
+        countEl.textContent = "-";
+      }
+    })
+    .catch(function() {
+      countEl.textContent = "-";
+    });
+}
+
+function loadBroadcastTab() {
+  loadSegmentCount(bcCurrentSegment);
+  loadBroadcastHistory();
+}
+
+// テンプレートプレビュー読み込み
+function loadTemplatePreview() {
+  var templateId = document.getElementById("bc-template-select").value;
+  var preview = document.getElementById("bc-template-preview");
+  var mainPreview = document.getElementById("bc-preview");
+
+  if (!templateId) {
+    preview.textContent = "テンプレートを選択すると、ここにプレビューが表示されます";
+    preview.style.color = "var(--text-sub)";
+    mainPreview.textContent = "テンプレートを選択してください";
+    mainPreview.style.color = "var(--text-sub)";
+    return;
+  }
+
+  // キャッシュがあればそれを使う
+  if (bcTemplateCache[templateId]) {
+    var content = bcTemplateCache[templateId];
+    preview.textContent = content;
+    preview.style.color = "var(--text-main)";
+    mainPreview.textContent = content;
+    mainPreview.style.color = "var(--text-main)";
+    return;
+  }
+
+  preview.textContent = "読み込み中...";
+  preview.style.color = "var(--text-muted)";
+
+  // prompts テーブルからテンプレートを取得
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getPromptTemplate", templateId: templateId })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success" && d.content) {
+        bcTemplateCache[templateId] = d.content;
+        preview.textContent = d.content;
+        preview.style.color = "var(--text-main)";
+        mainPreview.textContent = d.content;
+        mainPreview.style.color = "var(--text-main)";
+      } else {
+        preview.textContent = "テンプレートの取得に失敗しました";
+        preview.style.color = "var(--danger)";
+      }
+    })
+    .catch(function() {
+      preview.textContent = "テンプレートの取得に失敗しました";
+      preview.style.color = "var(--danger)";
+    });
+}
+
+// 配信送信
+function sendBroadcast() {
+  var message = "";
+  var templateId = "";
+  var useAi = false;
+
+  if (bcCurrentMode === "manual") {
+    message = document.getElementById("bc-message").value.trim();
+    if (!message) {
+      showToast("メッセージを入力してください");
+      return;
+    }
+    if (message.length > 500) {
+      showToast("500文字以内で入力してください");
+      return;
+    }
+  } else {
+    templateId = document.getElementById("bc-template-select").value;
+    if (!templateId) {
+      showToast("テンプレートを選択してください");
+      return;
+    }
+    useAi = document.getElementById("bc-ai-personalize").checked;
+    message = bcTemplateCache[templateId] || "";
+  }
+
+  var countEl = document.getElementById("bc-target-count");
+  var targetCount = parseInt(countEl.textContent) || 0;
+  if (targetCount === 0) {
+    showToast("配信対象が0名です");
+    return;
+  }
+
+  // 確認ダイアログ
+  var segNames = { all: "全員", vip: "VIP", active: "アクティブ", dormant: "休眠", "new": "新規" };
+  var segLabel = segNames[bcCurrentSegment] || bcCurrentSegment;
+  if (!confirm("「" + segLabel + "」セグメント（" + targetCount + "名）にメッセージを配信します。\n\nよろしいですか？")) {
+    return;
+  }
+
+  var btn = document.getElementById("bc-send-btn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">📣</span> 配信中...';
+
+  var payload = {
+    action: "sendBroadcast",
+    segment: bcCurrentSegment,
+    message: message,
+    templateId: templateId,
+    useAiPersonalize: useAi,
+    mode: bcCurrentMode
+  };
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.disabled = false;
+      btn.innerHTML = "📣 配信する";
+
+      if (d.status === "success") {
+        showToast("✅ " + (d.sentCount || targetCount) + "名に配信しました");
+        // フォームリセット
+        if (bcCurrentMode === "manual") {
+          document.getElementById("bc-message").value = "";
+          document.getElementById("bc-char-count").textContent = "0";
+        }
+        document.getElementById("bc-preview").textContent = "メッセージを入力すると、ここにプレビューが表示されます";
+        document.getElementById("bc-preview").style.color = "var(--text-sub)";
+        // 配信履歴リロード
+        loadBroadcastHistory();
+      } else {
+        showToast("❌ 配信に失敗しました: " + (d.message || "不明なエラー"));
+      }
+    })
+    .catch(function(err) {
+      console.error("Broadcast error:", err);
+      btn.disabled = false;
+      btn.innerHTML = "📣 配信する";
+      showToast("❌ 通信エラーが発生しました");
+    });
+}
+
+// 配信履歴の読み込み
+function loadBroadcastHistory() {
+  var container = document.getElementById("bc-history");
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "getBroadcastHistory" })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success" && d.history && d.history.length > 0) {
+        var html = "";
+        d.history.forEach(function(h) {
+          var segNames = { all: "全員", vip: "VIP", active: "アクティブ", dormant: "休眠", "new": "新規" };
+          var segLabel = segNames[h.segment] || h.segment;
+          var msgPreview = (h.message || "").substring(0, 50) + ((h.message || "").length > 50 ? "..." : "");
+          var time = h.sent_at || "";
+
+          html += '<div class="history-card" style="flex-direction:column; align-items:flex-start; gap:6px;">' +
+            '<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">' +
+            '<div style="display:flex; gap:8px; align-items:center;">' +
+            '<span class="badge badge-primary" style="font-size:11px;">' + segLabel + '</span>' +
+            '<span style="font-size:12px; color:var(--text-muted);">' + (h.sent_count || 0) + '名に送信</span>' +
+            '</div>' +
+            '<span style="font-size:12px; color:var(--text-muted);">' + time + '</span>' +
+            '</div>' +
+            '<div style="font-size:13px; color:var(--text-sub); line-height:1.5;">' + msgPreview + '</div>' +
+            '</div>';
+        });
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">配信履歴はまだありません</div>';
+      }
+    })
+    .catch(function() {
+      container.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">履歴の読み込みに失敗しました</div>';
+    });
 }
 
 
