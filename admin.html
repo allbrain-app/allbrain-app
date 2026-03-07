@@ -1663,7 +1663,7 @@ function switchTheme(mode) {
 // 配信管理タブ
 // ============================================================
 var bcCurrentSegment = "all";
-var bcCurrentMode = "manual"; // "manual" | "template"
+var bcCurrentMode = "manual";
 var bcTemplateCache = {};
 
 // 文字数カウント
@@ -1673,7 +1673,6 @@ var bcTemplateCache = {};
     ta.addEventListener("input", function() {
       var count = this.value.length;
       document.getElementById("bc-char-count").textContent = count;
-      // プレビュー更新
       var preview = document.getElementById("bc-preview");
       preview.textContent = this.value || "メッセージを入力すると、ここにプレビューが表示されます";
       preview.style.color = this.value ? "var(--text-main)" : "var(--text-sub)";
@@ -1688,7 +1687,6 @@ function switchBcMode(mode) {
   document.getElementById("bc-manual-form").style.display = mode === "manual" ? "block" : "none";
   document.getElementById("bc-template-form").style.display = mode === "template" ? "block" : "none";
 
-  // プレビューをリセット
   var preview = document.getElementById("bc-preview");
   preview.textContent = "メッセージを入力すると、ここにプレビューが表示されます";
   preview.style.color = "var(--text-sub)";
@@ -1696,19 +1694,16 @@ function switchBcMode(mode) {
 
 function selectBcSegment(segment, btn) {
   bcCurrentSegment = segment;
-  // ボタンのアクティブ状態を切り替え
   var parent = btn.parentElement;
   parent.querySelectorAll(".segment-btn").forEach(function(b) { b.classList.remove("active"); });
   btn.classList.add("active");
-
-  // 対象人数を取得
   loadSegmentCount(segment);
 }
 
 function loadSegmentCount(segment) {
   var countEl = document.getElementById("bc-target-count");
   countEl.textContent = "...";
-  
+
   fetch(GAS_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1716,8 +1711,8 @@ function loadSegmentCount(segment) {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.status === "success" && d.customers) {
-        // LINE user IDを持つ顧客のみカウント
+      // ★修正: "success" → "ok"
+      if (d.status === "ok" && d.customers) {
         var withLineId = d.customers.filter(function(c) { return c.line_user_id && c.line_user_id !== ""; });
         countEl.textContent = withLineId.length;
       } else {
@@ -1734,7 +1729,6 @@ function loadBroadcastTab() {
   loadBroadcastHistory();
 }
 
-// テンプレートプレビュー読み込み
 function loadTemplatePreview() {
   var templateId = document.getElementById("bc-template-select").value;
   var preview = document.getElementById("bc-template-preview");
@@ -1748,7 +1742,6 @@ function loadTemplatePreview() {
     return;
   }
 
-  // キャッシュがあればそれを使う
   if (bcTemplateCache[templateId]) {
     var content = bcTemplateCache[templateId];
     preview.textContent = content;
@@ -1761,7 +1754,6 @@ function loadTemplatePreview() {
   preview.textContent = "読み込み中...";
   preview.style.color = "var(--text-muted)";
 
-  // prompts テーブルからテンプレートを取得
   fetch(GAS_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1769,14 +1761,15 @@ function loadTemplatePreview() {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.status === "success" && d.content) {
+      // ★修正: "success" → "ok"
+      if (d.status === "ok" && d.content) {
         bcTemplateCache[templateId] = d.content;
         preview.textContent = d.content;
         preview.style.color = "var(--text-main)";
         mainPreview.textContent = d.content;
         mainPreview.style.color = "var(--text-main)";
       } else {
-        preview.textContent = "テンプレートの取得に失敗しました";
+        preview.textContent = "テンプレートの取得に失敗しました: " + (d.error || "不明");
         preview.style.color = "var(--danger)";
       }
     })
@@ -1786,7 +1779,6 @@ function loadTemplatePreview() {
     });
 }
 
-// 配信送信
 function sendBroadcast() {
   var message = "";
   var templateId = "";
@@ -1794,32 +1786,19 @@ function sendBroadcast() {
 
   if (bcCurrentMode === "manual") {
     message = document.getElementById("bc-message").value.trim();
-    if (!message) {
-      showToast("メッセージを入力してください");
-      return;
-    }
-    if (message.length > 500) {
-      showToast("500文字以内で入力してください");
-      return;
-    }
+    if (!message) { showToast("メッセージを入力してください"); return; }
+    if (message.length > 500) { showToast("500文字以内で入力してください"); return; }
   } else {
     templateId = document.getElementById("bc-template-select").value;
-    if (!templateId) {
-      showToast("テンプレートを選択してください");
-      return;
-    }
+    if (!templateId) { showToast("テンプレートを選択してください"); return; }
     useAi = document.getElementById("bc-ai-personalize").checked;
     message = bcTemplateCache[templateId] || "";
   }
 
   var countEl = document.getElementById("bc-target-count");
   var targetCount = parseInt(countEl.textContent) || 0;
-  if (targetCount === 0) {
-    showToast("配信対象が0名です");
-    return;
-  }
+  if (targetCount === 0) { showToast("配信対象が0名です"); return; }
 
-  // 確認ダイアログ
   var segNames = { all: "全員", vip: "VIP", active: "アクティブ", dormant: "休眠", "new": "新規" };
   var segLabel = segNames[bcCurrentSegment] || bcCurrentSegment;
   if (!confirm("「" + segLabel + "」セグメント（" + targetCount + "名）にメッセージを配信します。\n\nよろしいですか？")) {
@@ -1835,7 +1814,7 @@ function sendBroadcast() {
     segment: bcCurrentSegment,
     message: message,
     templateId: templateId,
-    useAiPersonalize: useAi,
+    aiPersonalize: useAi,    // ★修正: useAiPersonalize → aiPersonalize
     mode: bcCurrentMode
   };
 
@@ -1849,19 +1828,23 @@ function sendBroadcast() {
       btn.disabled = false;
       btn.innerHTML = "📣 配信する";
 
-      if (d.status === "success") {
-        showToast("✅ " + (d.sentCount || targetCount) + "名に配信しました");
-        // フォームリセット
+      // ★修正: "success" → "ok", d.sentCount → d.sent_count
+      if (d.status === "ok") {
+        var sent = d.sent_count || 0;
+        var errCnt = d.error_count || 0;
+        var msg = "✅ " + sent + "名に配信しました";
+        if (errCnt > 0) msg += "（エラー: " + errCnt + "件）";
+        showToast(msg);
+
         if (bcCurrentMode === "manual") {
           document.getElementById("bc-message").value = "";
           document.getElementById("bc-char-count").textContent = "0";
         }
         document.getElementById("bc-preview").textContent = "メッセージを入力すると、ここにプレビューが表示されます";
         document.getElementById("bc-preview").style.color = "var(--text-sub)";
-        // 配信履歴リロード
         loadBroadcastHistory();
       } else {
-        showToast("❌ 配信に失敗しました: " + (d.message || "不明なエラー"));
+        showToast("❌ 配信に失敗しました: " + (d.error || "不明なエラー"));
       }
     })
     .catch(function(err) {
@@ -1872,7 +1855,6 @@ function sendBroadcast() {
     });
 }
 
-// 配信履歴の読み込み
 function loadBroadcastHistory() {
   var container = document.getElementById("bc-history");
 
@@ -1883,21 +1865,35 @@ function loadBroadcastHistory() {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.status === "success" && d.history && d.history.length > 0) {
+      // ★修正: "success" → "ok"
+      if (d.status === "ok" && d.history && d.history.length > 0) {
         var html = "";
+        var segNames = { all: "全員", vip: "VIP", active: "アクティブ", dormant: "休眠", "new": "新規", auto: "🤖自動" };
+        var modeNames = { manual: "フリー", template: "テンプレ", auto: "自動" };
+
         d.history.forEach(function(h) {
-          var segNames = { all: "全員", vip: "VIP", active: "アクティブ", dormant: "休眠", "new": "新規" };
           var segLabel = segNames[h.segment] || h.segment;
+          var modeLabel = modeNames[h.mode] || h.mode;
           var msgPreview = (h.message || "").substring(0, 50) + ((h.message || "").length > 50 ? "..." : "");
-          var time = h.sent_at || "";
+
+          // ★修正: 日時フォーマット改善
+          var timeStr = "";
+          if (h.sent_at) {
+            var d2 = new Date(h.sent_at);
+            timeStr = (d2.getMonth() + 1) + "/" + d2.getDate() + " " +
+              ("0" + d2.getHours()).slice(-2) + ":" + ("0" + d2.getMinutes()).slice(-2);
+          }
 
           html += '<div class="history-card" style="flex-direction:column; align-items:flex-start; gap:6px;">' +
             '<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">' +
             '<div style="display:flex; gap:8px; align-items:center;">' +
             '<span class="badge badge-primary" style="font-size:11px;">' + segLabel + '</span>' +
-            '<span style="font-size:12px; color:var(--text-muted);">' + (h.sent_count || 0) + '名に送信</span>' +
+            '<span style="font-size:11px; color:var(--text-muted); background:var(--border-light); padding:1px 6px; border-radius:4px;">' + modeLabel + '</span>' +
+            (h.ai_personalized ? '<span style="font-size:11px;">🤖</span>' : '') +
+            '<span style="font-size:12px; color:var(--text-muted);">' + (h.sent_count || 0) + '/' + (h.target_count || 0) + '名</span>' +
+            (h.error_count > 0 ? '<span style="font-size:11px; color:var(--danger);">⚠️' + h.error_count + '</span>' : '') +
             '</div>' +
-            '<span style="font-size:12px; color:var(--text-muted);">' + time + '</span>' +
+            '<span style="font-size:12px; color:var(--text-muted);">' + timeStr + '</span>' +
             '</div>' +
             '<div style="font-size:13px; color:var(--text-sub); line-height:1.5;">' + msgPreview + '</div>' +
             '</div>';
