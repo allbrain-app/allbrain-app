@@ -1412,19 +1412,21 @@ body {
 #menu-items {
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
+
 #menu-items.slide-out-left {
-  transform: translateX(-30px);
+  transform: translateX(-100%);
   opacity: 0;
 }
 #menu-items.slide-out-right {
-  transform: translateX(30px);
+  transform: translateX(100%);
   opacity: 0;
 }
 #menu-items.slide-in-left {
-  transform: translateX(30px);
+  transform: translateX(-100%);
   opacity: 0;
 }
 #menu-items.slide-in-right {
-  transform: translateX(-30px);
+  transform: translateX(100%);
   opacity: 0;
 }
+
