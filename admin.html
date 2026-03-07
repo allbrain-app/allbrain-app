@@ -1827,8 +1827,8 @@ function sendBroadcast() {
       btn.innerHTML = "📣 配信する";
 
       if (d.status === "success") {
-        var sent = d.sent_count || 0;
-        var errCnt = d.error_count || 0;
+        var sent = d.sentCount || 0;
+        var errCnt = d.errorCount || 0;
         var msg = "✅ " + sent + "名に配信しました";
         if (errCnt > 0) msg += "（エラー: " + errCnt + "件）";
         showToast(msg);
