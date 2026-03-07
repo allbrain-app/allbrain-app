@@ -2163,7 +2163,83 @@ function loadAiUsage() {
   .catch(function(e) { console.error("AI usage error:", e); });
 }
 
-undefined
+// ============================================================
+// 自動配信 ON/OFF
+// ============================================================
+var autoBcEnabled = false;
+
+function loadAutoBroadcastStatus() {
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: "getSettings"})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.status === "success" && d.configs) {
+      var cfg = d.configs.find(function(c) { return c.key === "AUTO_BROADCAST_ENABLED"; });
+      autoBcEnabled = cfg && cfg.value === "true";
+      renderAutoBroadcastToggle();
+    }
+  })
+  .catch(function(e) { console.error("Auto BC status error:", e); });
+}
+
+function renderAutoBroadcastToggle() {
+  var btn = document.getElementById("auto-bc-toggle-btn");
+  var statusText = document.getElementById("auto-bc-status-text");
+  btn.disabled = false;
+
+  if (autoBcEnabled) {
+    btn.textContent = "⏸ 停止する";
+    btn.style.background = "var(--danger)";
+    btn.style.color = "#fff";
+    statusText.innerHTML = '<span style="color:var(--success); font-weight:600;">● 稼働中</span> — AIが毎日自動で配信しています';
+  } else {
+    btn.textContent = "▶ 自動化する";
+    btn.style.background = "var(--success)";
+    btn.style.color = "#fff";
+    statusText.innerHTML = '<span style="color:var(--text-muted); font-weight:600;">● 停止中</span> — 手動配信のみ有効です';
+  }
+}
+
+function toggleAutoBroadcast() {
+  var btn = document.getElementById("auto-bc-toggle-btn");
+  var newState = !autoBcEnabled;
+
+  var msg = newState
+    ? "自動配信を有効にしますか？\n毎日18時に対象顧客へAIがメッセージを送信します。"
+    : "自動配信を停止しますか？\n手動配信は引き続き利用できます。";
+
+  if (!confirm(msg)) return;
+
+  btn.disabled = true;
+  btn.textContent = "変更中...";
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: "toggleAutoBroadcast", enabled: newState})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.status === "success") {
+      autoBcEnabled = d.enabled;
+      renderAutoBroadcastToggle();
+      showToast(autoBcEnabled ? "✅ 自動配信を有効にしました" : "⏸ 自動配信を停止しました");
+    } else {
+      btn.disabled = false;
+      renderAutoBroadcastToggle();
+      showToast("エラー: " + (d.message || ""));
+    }
+  })
+  .catch(function(e) {
+    console.error("Toggle error:", e);
+    btn.disabled = false;
+    renderAutoBroadcastToggle();
+    showToast("通信エラー");
+  });
+}
 
 function renderAiUsage(d) {
   // サマリーカード
