@@ -465,6 +465,18 @@
 <div id="panel-aiusage" class="tab-panel">
   <div class="section-label">🤖 AI利用状況（今月）</div>
 
+  <!-- 自動配信ON/OFF -->
+  <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div style="font-size:15px; font-weight:700;">🔄 自動配信（ステップ配信）</div>
+      <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">毎日18時に対象顧客へ自動でメッセージを送信します</div>
+      <div style="font-size:12px; margin-top:4px;" id="auto-bc-status-text">読み込み中...</div>
+    </div>
+    <button class="btn btn-lg" id="auto-bc-toggle-btn" onclick="toggleAutoBroadcast()" style="min-width:120px;" disabled>
+      読み込み中
+    </button>
+  </div>
+
   <!-- サマリーカード -->
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
     <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
@@ -727,7 +739,7 @@ function switchTab(tab) {
   if (tab === "sales") loadSales();
   if (tab === "aiusage") { loadAiUsage(); loadCampaignEffect(); }
   if (tab === "broadcast") loadBroadcastTab();
-  if (tab === "aiusage") loadAiUsage();
+  if (tab === "aiusage") { loadAiUsage(); loadCampaignEffect(); loadAutoBroadcastStatus(); }
 }
 
 function refreshCurrentTab() {
@@ -2150,6 +2162,8 @@ function loadAiUsage() {
   })
   .catch(function(e) { console.error("AI usage error:", e); });
 }
+
+undefined
 
 function renderAiUsage(d) {
   // サマリーカード
