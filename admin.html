@@ -1073,10 +1073,50 @@ function renderSettings(configs, prompts) {
     "REPLY_KEYWORD_HOURS": { label: "営業時間キーワード", desc: "カンマ区切り" }
   };
 
+  // 現在のテーマを取得
+  var currentTheme = 'light';
+  var themeConfig = configs.find(function(c) { return c.key === 'THEME_MODE'; });
+  if (themeConfig) currentTheme = themeConfig.value || 'light';
+
   var html = '';
 
+  // テーマ切り替えセクション
+  html += '<div class="section-label" style="margin-top:0;">🎨 テーマ設定</div>';
+  html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:20px; margin-bottom:20px; box-shadow:var(--shadow);">';
+  html += '<div class="form-group" style="margin-bottom:0;">';
+  html += '<label class="form-label">オーダー画面のテーマ <span style="font-weight:400; color:var(--text-muted);">（注文画面・管理画面に即時反映）</span></label>';
+  html += '<div style="display:flex; gap:12px; margin-top:8px;">';
+
+  // ライトボタン
+  var lightActive = currentTheme === 'light';
+  html += '<button onclick="switchTheme(\'light\')" style="'
+    + 'flex:1; padding:16px 12px; border-radius:12px; cursor:pointer; transition:all 0.2s; text-align:center; font-family:inherit;'
+    + (lightActive
+      ? 'background:#ffffff; border:2px solid #3b82f6; color:#1f2937; box-shadow:0 2px 8px rgba(59,130,246,0.2);'
+      : 'background:#f9fafb; border:2px solid #e5e7eb; color:#6b7280;')
+    + '">'
+    + '<div style="font-size:24px; margin-bottom:6px;">☀️</div>'
+    + '<div style="font-size:13px; font-weight:700;">ライト</div>'
+    + (lightActive ? '<div style="font-size:11px; color:#3b82f6; margin-top:4px;">✓ 選択中</div>' : '')
+    + '</button>';
+
+  // ダークボタン
+  var darkActive = currentTheme === 'dark';
+  html += '<button onclick="switchTheme(\'dark\')" style="'
+    + 'flex:1; padding:16px 12px; border-radius:12px; cursor:pointer; transition:all 0.2s; text-align:center; font-family:inherit;'
+    + (darkActive
+      ? 'background:#1a1a1a; border:2px solid #d4a574; color:#f5f0eb; box-shadow:0 2px 8px rgba(212,165,116,0.2);'
+      : 'background:#f9fafb; border:2px solid #e5e7eb; color:#6b7280;')
+    + '">'
+    + '<div style="font-size:24px; margin-bottom:6px;">🌙</div>'
+    + '<div style="font-size:13px; font-weight:700;">ダーク</div>'
+    + (darkActive ? '<div style="font-size:11px; color:#d4a574; margin-top:4px;">✓ 選択中</div>' : '')
+    + '</button>';
+
+  html += '</div></div></div>';
+
   // AI設定セクション
-  html += '<div class="section-label" style="margin-top:0;">🤖 AI設定</div>';
+  html += '<div class="section-label">🤖 AI設定</div>';
   html += '<div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:var(--radius); padding:20px; margin-bottom:20px; box-shadow:var(--shadow);">';
   configs.forEach(function(c) {
     if (c.key === "GEMINI_MODEL" || c.key === "VIP_COUNT_THRESHOLD" || c.key === "VIP_DAYS_THRESHOLD") {
@@ -1317,6 +1357,30 @@ function hideLogin() {
   document.getElementById("login-screen").style.display = "none";
   loadOrders();
   orderInterval = setInterval(function() { if (currentTab === "orders") loadOrders(false); }, 15000);
+}
+
+function switchTheme(mode) {
+  // config テーブルに保存
+  fetch(GAS_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'saveSettings',
+      configs: [{ key: 'THEME_MODE', value: mode }],
+      prompts: []
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.status === 'success') {
+      showToast((mode === 'dark' ? '🌙 ダーク' : '☀️ ライト') + 'モードに変更しました');
+      // 設定画面を再読み込みして選択状態を更新
+      loadSettings();
+    } else {
+      showToast('保存に失敗しました');
+    }
+  }).catch(function(e) {
+    console.error('Theme save error:', e);
+    showToast('通信エラーが発生しました');
+  });
 }
 
 
