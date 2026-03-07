@@ -1049,17 +1049,6 @@ function filterCustomers() {
   renderCustomers(filtered);
 }
 
-function filterCustomers() {
-  var q = document.getElementById("customer-search").value.toLowerCase().trim();
-  if (!q) { renderCustomers(allCustomers); return; }
-  var filtered = allCustomers.filter(function(c) {
-    var name = (c.display_name || "").toLowerCase();
-    var tags = (c.tags || "").toLowerCase();
-    return name.indexOf(q) !== -1 || tags.indexOf(q) !== -1;
-  });
-  renderCustomers(filtered);
-}
-
 function openCustomerDetail(lineUserId) {
   currentCustomerId = lineUserId;
   document.getElementById("customerDetailModal").classList.add("show");
