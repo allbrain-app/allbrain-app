@@ -466,16 +466,37 @@
   <div class="section-label">🤖 AI利用状況（今月）</div>
 
   <!-- 自動配信ON/OFF -->
-  <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-    <div>
-      <div style="font-size:15px; font-weight:700;">🔄 自動配信（ステップ配信）</div>
-      <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">毎日18時に対象顧客へ自動でメッセージを送信します</div>
-      <div style="font-size:12px; margin-top:4px;" id="auto-bc-status-text">読み込み中...</div>
+  <div style="background:var(--card-bg); border:1px solid var(--border-color); border-radius:12px; padding:20px; margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <div style="font-size:15px; font-weight:700;">🔄 自動配信（ステップ配信）</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">対象顧客へ自動でメッセージを送信します</div>
+        <div style="font-size:12px; margin-top:4px;" id="auto-bc-status-text">読み込み中...</div>
+      </div>
+      <button class="btn btn-lg" id="auto-bc-toggle-btn" onclick="toggleAutoBroadcast()" style="min-width:120px;" disabled>
+        読み込み中
+      </button>
     </div>
-    <button class="btn btn-lg" id="auto-bc-toggle-btn" onclick="toggleAutoBroadcast()" style="min-width:120px;" disabled>
-      読み込み中
-    </button>
+    <div style="display:flex; align-items:center; gap:12px; padding-top:12px; border-top:1px solid var(--border-color);">
+      <label style="font-size:13px; font-weight:600; color:var(--text-sub); white-space:nowrap;">⏰ 配信時間</label>
+      <select class="form-select" id="auto-bc-hour" onchange="saveAutoBroadcastHour()" style="width:120px;">
+        <option value="10">10:00</option>
+        <option value="11">11:00</option>
+        <option value="12">12:00</option>
+        <option value="13">13:00</option>
+        <option value="14">14:00</option>
+        <option value="15">15:00</option>
+        <option value="16">16:00</option>
+        <option value="17">17:00</option>
+        <option value="18" selected>18:00</option>
+        <option value="19">19:00</option>
+        <option value="20">20:00</option>
+        <option value="21">21:00</option>
+      </select>
+      <span style="font-size:11px; color:var(--text-muted);">毎日この時間に自動実行されます</span>
+    </div>
   </div>
+
 
   <!-- サマリーカード -->
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
@@ -2180,6 +2201,11 @@ function loadAutoBroadcastStatus() {
       var cfg = d.configs.find(function(c) { return c.key === "AUTO_BROADCAST_ENABLED"; });
       autoBcEnabled = cfg && cfg.value === "true";
       renderAutoBroadcastToggle();
+
+      var hourCfg = d.configs.find(function(c) { return c.key === "AUTO_BROADCAST_HOUR"; });
+      var hour = hourCfg ? hourCfg.value : "18";
+      var hourSelect = document.getElementById("auto-bc-hour");
+      if (hourSelect) hourSelect.value = hour;
     }
   })
   .catch(function(e) { console.error("Auto BC status error:", e); });
@@ -2301,6 +2327,21 @@ function renderAiUsage(d) {
   dailyEl.innerHTML = dHtml;
 }
 
+function saveAutoBroadcastHour() {
+  var hour = document.getElementById("auto-bc-hour").value;
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: "saveSettings", configs: [{key: "AUTO_BROADCAST_HOUR", value: hour}], prompts: []})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.status === "success") {
+      showToast("⏰ 配信時間を " + hour + ":00 に変更しました");
+    }
+  })
+  .catch(function(e) { console.error("Save hour error:", e); });
+}
 
 
 
