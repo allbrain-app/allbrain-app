@@ -304,6 +304,7 @@
   <button class="tab-btn" onclick="switchTab('customers')">👥 顧客管理</button>
   <button class="tab-btn" onclick="switchTab('sales')">📊 売上分析</button>
   <button class="tab-btn" onclick="switchTab('broadcast')">📣 配信管理</button>
+  <button class="tab-btn" onclick="switchTab('aiusage')">🤖 AI利用状況</button>
   <button class="tab-btn" onclick="switchTab('settings')">⚙️ 設定</button>
 </div>
 
@@ -459,6 +460,42 @@
   </div>
 
 </div> <!-- ★ これが欠落: panel-broadcast の閉じタグ -->
+
+<!-- AI利用状況タブ -->
+<div id="panel-aiusage" class="tab-panel">
+  <div class="section-label">🤖 AI利用状況（今月）</div>
+
+  <!-- サマリーカード -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;" id="ai-summary">
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">AI稼働回数</div>
+      <div style="font-size:28px; font-weight:700; color:var(--accent);" id="ai-total-calls">-</div>
+      <div style="font-size:11px; color:var(--text-muted);" id="ai-calls-diff"></div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">トークン消費</div>
+      <div style="font-size:28px; font-weight:700; color:var(--accent);" id="ai-total-tokens">-</div>
+      <div style="font-size:11px; color:var(--text-muted);" id="ai-tokens-diff"></div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">最も利用された機能</div>
+      <div style="font-size:18px; font-weight:700;" id="ai-top-func">-</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">推定コスト</div>
+      <div style="font-size:28px; font-weight:700; color:#e67e22;" id="ai-cost">-</div>
+    </div>
+  </div>
+
+  <!-- 機能別内訳 -->
+  <div class="section-label">📊 機能別内訳</div>
+  <div id="ai-by-function" style="margin-bottom:20px;"></div>
+
+  <!-- 日別推移 -->
+  <div class="section-label">📅 日別推移</div>
+  <div id="ai-daily" style="margin-bottom:20px;"></div>
+</div>
+
 
 <!-- ======== 設定タブ ======== -->
 <div class="tab-panel" id="panel-settings">
@@ -670,6 +707,7 @@ function switchTab(tab) {
   if (tab === "settings") loadSettings();
   if (tab === "sales") loadSales();
   if (tab === "broadcast") loadBroadcastTab();
+  if (tab === "aiusage") loadAiUsage();
 }
 
 function refreshCurrentTab() {
@@ -2012,6 +2050,104 @@ function loadBroadcastHistory() {
       container.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">履歴の読み込みに失敗しました</div>';
     });
 }
+
+
+// ============================================================
+// AI利用状況タブ
+// ============================================================
+var aiUsageFuncLabels = {
+  "sommelier": "🍷 AIソムリエ",
+  "consult": "💬 AI相談",
+  "broadcast_preview": "📝 配信プレビュー",
+  "broadcast_personalize": "✨ パーソナライズ配信",
+  "auto_broadcast": "🔄 自動配信",
+  "unknown": "❓ その他"
+};
+
+function loadAiUsage() {
+  document.getElementById("ai-total-calls").textContent = "...";
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: "getAiUsageStats"})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.status !== "success") return;
+    renderAiUsage(d);
+  })
+  .catch(function(e) { console.error("AI usage error:", e); });
+}
+
+function renderAiUsage(d) {
+  // サマリーカード
+  document.getElementById("ai-total-calls").textContent = d.totalCalls.toLocaleString();
+  document.getElementById("ai-total-tokens").textContent = d.totalTokens.toLocaleString();
+  document.getElementById("ai-top-func").textContent = aiUsageFuncLabels[d.topFunction] || d.topFunction;
+
+  // 前月比
+  var callsDiff = d.totalCalls - (d.lastMonth?.totalCalls || 0);
+  var callsEl = document.getElementById("ai-calls-diff");
+  callsEl.textContent = "前月比 " + (callsDiff >= 0 ? "+" : "") + callsDiff;
+  callsEl.style.color = callsDiff >= 0 ? "#27ae60" : "#e74c3c";
+
+  var tokensDiff = d.totalTokens - (d.lastMonth?.totalTokens || 0);
+  var tokensEl = document.getElementById("ai-tokens-diff");
+  tokensEl.textContent = "前月比 " + (tokensDiff >= 0 ? "+" : "") + tokensDiff.toLocaleString();
+  tokensEl.style.color = tokensDiff >= 0 ? "#27ae60" : "#e74c3c";
+
+  // 推定コスト（Gemini 2.5 Flash: 入力$0.15/1M, 出力$0.60/1M → 概算 $0.30/1M平均 → ¥45/1M）
+  var costYen = Math.ceil(d.totalTokens * 0.000045);
+  document.getElementById("ai-cost").textContent = "¥" + costYen.toLocaleString();
+
+  // 機能別内訳（CSSバー）
+  var funcEl = document.getElementById("ai-by-function");
+  if (!d.byFunction || d.byFunction.length === 0) {
+    funcEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">データなし</div>';
+    return;
+  }
+  var maxCount = d.byFunction[0].count;
+  var html = "";
+  for (var i = 0; i < d.byFunction.length; i++) {
+    var f = d.byFunction[i];
+    var label = aiUsageFuncLabels[f.name] || f.name;
+    var pct = maxCount > 0 ? Math.round(f.count / maxCount * 100) : 0;
+    html += '<div style="margin-bottom:12px;">';
+    html += '<div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">';
+    html += '<span>' + label + '</span>';
+    html += '<span style="color:var(--text-muted);">' + f.count + '回 / ' + f.tokens.toLocaleString() + ' tokens</span>';
+    html += '</div>';
+    html += '<div style="background:var(--border-color); border-radius:6px; height:8px; overflow:hidden;">';
+    html += '<div style="background:var(--accent); height:100%; width:' + pct + '%; border-radius:6px; transition:width 0.5s;"></div>';
+    html += '</div></div>';
+  }
+  funcEl.innerHTML = html;
+
+  // 日別推移（CSSバー）
+  var dailyEl = document.getElementById("ai-daily");
+  if (!d.daily || d.daily.length === 0) {
+    dailyEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">データなし</div>';
+    return;
+  }
+  var maxDaily = 1;
+  for (var j = 0; j < d.daily.length; j++) {
+    if (d.daily[j].calls > maxDaily) maxDaily = d.daily[j].calls;
+  }
+  var dHtml = '<div style="display:flex; align-items:flex-end; gap:3px; height:120px; padding:8px 0; border-bottom:1px solid var(--border-color);">';
+  for (var k = 0; k < d.daily.length; k++) {
+    var day = d.daily[k];
+    var hPct = Math.round(day.calls / maxDaily * 100);
+    var dateLabel = day.date.substring(5);
+    dHtml += '<div style="flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;" title="' + day.date + ': ' + day.calls + '回">';
+    dHtml += '<div style="font-size:10px; color:var(--text-muted); margin-bottom:2px;">' + day.calls + '</div>';
+    dHtml += '<div style="background:var(--accent); width:100%; max-width:24px; border-radius:3px 3px 0 0; height:' + hPct + '%;"></div>';
+    dHtml += '<div style="font-size:9px; color:var(--text-muted); margin-top:4px; writing-mode:vertical-rl;">' + dateLabel + '</div>';
+    dHtml += '</div>';
+  }
+  dHtml += '</div>';
+  dailyEl.innerHTML = dHtml;
+}
+
 
 
 </script>
