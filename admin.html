@@ -22,23 +22,6 @@
   white-space: nowrap;
 }
 
-.tab-panel {
-  transition: transform 0.25s ease, opacity 0.2s ease;
-}
-.tab-panel.slide-out-left {
-  transform: translateX(-40px);
-  opacity: 0;
-}
-.tab-panel.slide-out-right {
-  transform: translateX(40px);
-  opacity: 0;
-}
-.tab-panel.no-transition {
-  transition: none !important;
-}
-
-
-
 
   .segment-btn {
   flex-shrink: 0;
@@ -784,55 +767,29 @@ var tabOrder = ["orders", "menu", "customers", "sales", "broadcast", "aiusage", 
 var tabOrder = ["orders", "menu", "customers", "sales", "broadcast", "aiusage", "settings"];
 
 function switchTab(tab) {
-  var oldTab = currentTab;
-  if (tab === oldTab) return;
+  currentTab = tab;
+  document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+  document.querySelectorAll(".tab-panel").forEach(function(p) {
+    p.classList.remove("active");
+    p.style.transform = "";
+    p.style.opacity = "";
+  });
+  document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add("active");
+  document.getElementById("panel-" + tab).classList.add("active");
 
-  var oldIndex = tabOrder.indexOf(oldTab);
-  var newIndex = tabOrder.indexOf(tab);
-  var goingRight = newIndex > oldIndex;
-
-  var oldPanel = document.getElementById("panel-" + oldTab);
-  if (oldPanel) {
-    oldPanel.classList.add(goingRight ? "slide-out-left" : "slide-out-right");
+  // アクティブタブを見えるようスクロール
+  var activeBtn = document.querySelector(".tab-btn.active");
+  if (activeBtn) {
+    activeBtn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }
 
-  setTimeout(function() {
-    currentTab = tab;
-    document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
-    document.querySelectorAll(".tab-panel").forEach(function(p) {
-      p.classList.remove("active", "slide-out-left", "slide-out-right", "no-transition");
-      p.style.transform = "";
-      p.style.opacity = "";
-    });
-    document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add("active");
-
-    var newPanel = document.getElementById("panel-" + tab);
-
-    // トランジション無効にして反対側に配置
-    newPanel.classList.add("no-transition", "active");
-    newPanel.style.transform = goingRight ? "translateX(40%)" : "translateX(-40%)";
-    newPanel.style.opacity = "0";
-
-    void newPanel.offsetWidth;
-
-    // トランジション有効にしてスライドイン
-    newPanel.classList.remove("no-transition");
-    newPanel.style.transform = "translateX(0)";
-    newPanel.style.opacity = "1";
-
-    var activeBtn = document.querySelector(".tab-btn.active");
-    if (activeBtn) {
-      activeBtn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    }
-
-    if (tab === "orders") loadOrders();
-    if (tab === "menu") loadMenu();
-    if (tab === "customers") loadCustomers();
-    if (tab === "sales") loadSales();
-    if (tab === "broadcast") loadBroadcast();
-    if (tab === "aiusage") { loadAiUsage(); loadCampaignEffect(); loadAutoBroadcastStatus(); }
-    if (tab === "settings") loadSettings();
-  }, 250);
+  if (tab === "orders") loadOrders();
+  if (tab === "menu") loadMenu();
+  if (tab === "customers") loadCustomers();
+  if (tab === "sales") loadSales();
+  if (tab === "broadcast") loadBroadcast();
+  if (tab === "aiusage") { loadAiUsage(); loadCampaignEffect(); loadAutoBroadcastStatus(); }
+  if (tab === "settings") loadSettings();
 }
 
 
