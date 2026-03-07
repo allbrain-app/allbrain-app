@@ -70,7 +70,9 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("show");
+  document.body.style.overflow = "";
 }
+
 
 // ============================================================
 // トースト
@@ -231,7 +233,6 @@ function setTable() {
   tableId = val;
   localStorage.setItem("MO_TABLE", tableId);
   closeModal("tableModal");
- console.log(closeModal.toString());
 }
 
 // ============================================================
