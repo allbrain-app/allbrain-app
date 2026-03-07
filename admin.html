@@ -297,8 +297,15 @@
 
 <!-- ======== 顧客管理タブ ======== -->
 <div class="tab-panel" id="panel-customers">
-  <div style="margin-bottom:16px;">
+  <div style="margin-bottom:12px;">
     <input class="form-input" id="customer-search" placeholder="🔍 名前・タグで検索..." oninput="filterCustomers()">
+  </div>
+  <div style="display:flex; gap:8px; margin-bottom:16px; overflow-x:auto;">
+    <button class="segment-btn active" onclick="filterSegment('all')">全員</button>
+    <button class="segment-btn" onclick="filterSegment('vip')">👑 VIP</button>
+    <button class="segment-btn" onclick="filterSegment('active')">✅ アクティブ</button>
+    <button class="segment-btn" onclick="filterSegment('dormant')">💤 休眠</button>
+    <button class="segment-btn" onclick="filterSegment('new')">🆕 新規</button>
   </div>
   <div class="section-label">👥 顧客一覧 <span class="badge badge-primary" id="customer-count">0</span></div>
   <div id="customer-list">
