@@ -1413,6 +1413,10 @@ body {
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
+#menu-items {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  overflow: hidden;
+}
 #menu-items.slide-out-left {
   transform: translateX(-100%);
   opacity: 0;
@@ -1421,12 +1425,8 @@ body {
   transform: translateX(100%);
   opacity: 0;
 }
-#menu-items.slide-in-left {
-  transform: translateX(-100%);
-  opacity: 0;
+#menu-items.no-transition {
+  transition: none !important;
 }
-#menu-items.slide-in-right {
-  transform: translateX(100%);
-  opacity: 0;
-}
+
 
