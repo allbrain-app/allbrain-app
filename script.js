@@ -1284,17 +1284,13 @@ function openBill() {
     return;
   }
 
-  // 注文履歴を取得
-  var userId = currentUser ? currentUser.userId : "";
-  var tableId = currentTable || "";
-
   fetch(GAS_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "getBill",
-      userId: userId,
-      tableId: tableId
+      userId: currentUserId || "",
+      tableId: tableId || ""
     })
   })
     .then(function(r) { return r.json(); })
@@ -1314,6 +1310,44 @@ function openBill() {
       document.getElementById("bill-empty").style.display = "block";
     });
 }
+
+function requestBill() {
+  if (!billData) return;
+
+  var btn = document.getElementById("bill-request-btn");
+  btn.disabled = true;
+  btn.textContent = "送信中...";
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "requestBill",
+      userId: currentUserId || "",
+      tableId: tableId || "",
+      total: billData.total || 0,
+      displayName: ""
+    })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success") {
+        billRequested = true;
+        showBillRequested();
+      } else {
+        btn.disabled = false;
+        btn.textContent = "🙋 会計をお願いする";
+        alert("エラーが発生しました");
+      }
+    })
+    .catch(function(e) {
+      console.error("requestBill error:", e);
+      btn.disabled = false;
+      btn.textContent = "🙋 会計をお願いする";
+      alert("通信エラーが発生しました");
+    });
+}
+
 
 function renderBill(data) {
   document.getElementById("bill-table-no").textContent = currentTable || "-";
@@ -1340,46 +1374,6 @@ function renderBill(data) {
 
   container.innerHTML = html;
   document.getElementById("bill-total").textContent = "¥" + total.toLocaleString();
-}
-
-function requestBill() {
-  if (!billData) return;
-
-  var btn = document.getElementById("bill-request-btn");
-  btn.disabled = true;
-  btn.textContent = "送信中...";
-
-  var userId = currentUser ? currentUser.userId : "";
-  var tableId = currentTable || "";
-
-  fetch(GAS_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "requestBill",
-      userId: userId,
-      tableId: tableId,
-      total: billData.total || 0,
-      displayName: currentUser ? currentUser.displayName : ""
-    })
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.status === "success") {
-        billRequested = true;
-        showBillRequested();
-      } else {
-        btn.disabled = false;
-        btn.textContent = "🙋 会計をお願いする";
-        alert("エラーが発生しました");
-      }
-    })
-    .catch(function(e) {
-      console.error("requestBill error:", e);
-      btn.disabled = false;
-      btn.textContent = "🙋 会計をお願いする";
-      alert("通信エラーが発生しました");
-    });
 }
 
 function showBillRequested() {
