@@ -277,23 +277,30 @@
 </div>
 
 <!-- シェア画像モーダル -->
-<div class="modal-backdrop center" id="shareImageModal">
+<div id="shareImageModal" class="modal-overlay" onclick="handleOverlayClick(event,'shareImageModal')">
   <div class="modal-center-box" style="max-width:420px; width:90%;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <h3 style="font-size:17px; font-weight:800; margin:0;">📸 シェア画像</h3>
       <button class="modal-close" onclick="closeModal('shareImageModal')">✕</button>
     </div>
-    <div id="share-loading" style="text-align:center; padding:30px 0;">
+    <div id="share-loading" style="text-align:center; padding:30px 0; display:none;">
       <div class="dot-loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
       <p style="color:var(--text-sub); font-size:13px;">画像を生成中...</p>
     </div>
     <div id="share-result" style="display:none; text-align:center;">
       <img id="share-preview-img" src="" style="width:100%; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.15);">
-      <p style="color:var(--text-muted); font-size:12px; margin-top:12px;">↓ 画像を押して保存</p>
-      <a id="share-direct-link" href="" target="_blank" class="btn-primary" style="display:block; text-decoration:none; text-align:center; margin-top:8px;">画像を別タブで開く</a>
+      <p style="color:var(--text-muted); font-size:12px; margin-top:12px;">📱 画像を長押し →「写真に保存」でカメラロールに保存できます</p>
+      <button id="share-save-btn" onclick="saveShareImage()" class="btn-primary" style="width:100%; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:6px;">
+        💾 画像を保存する
+      </button>
+      <button id="share-line-btn" onclick="shareToLine()" style="width:100%; margin-top:8px; padding:14px; border:none; border-radius:12px; background:#06C755; color:#fff; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+        💬 LINEで友達にシェア
+      </button>
+      <a id="share-direct-link" href="" target="_blank" style="display:block; margin-top:8px; color:var(--text-muted); font-size:12px; text-decoration:underline;">画像を別タブで開く</a>
     </div>
   </div>
 </div>
+
 
 <!-- フッター -->
 <nav class="app-footer">
