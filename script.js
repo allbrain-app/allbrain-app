@@ -252,11 +252,39 @@ function buildCategoryTabs() {
   container.innerHTML = html;
 }
 
+var previousCategory = "ALL";
+
 function filterCategory(cat) {
-  currentCategory = cat;
-  buildCategoryTabs();
-  renderMenu();
+  if (cat === currentCategory) return;
+
+  var categories = ["ALL", "Food", "Drink"];
+  var oldIndex = categories.indexOf(currentCategory);
+  var newIndex = categories.indexOf(cat);
+  var goingRight = newIndex > oldIndex;
+
+  var menuItems = document.getElementById("menu-items");
+
+  // フェーズ1: 現在のコンテンツをスライドアウト
+  menuItems.classList.add(goingRight ? "slide-out-left" : "slide-out-right");
+
+  setTimeout(function() {
+    // カテゴリ切替
+    currentCategory = cat;
+    buildCategoryTabs();
+    renderMenu();
+
+    // フェーズ2: 新しいコンテンツを反対側からスライドイン準備
+    menuItems.classList.remove("slide-out-left", "slide-out-right");
+    menuItems.classList.add(goingRight ? "slide-in-left" : "slide-in-right");
+
+    // 強制リフロー
+    void menuItems.offsetWidth;
+
+    // フェーズ3: スライドイン
+    menuItems.classList.remove("slide-in-left", "slide-in-right");
+  }, 200);
 }
+
 
 // ============================================================
 // メニュー画面スワイプでカテゴリ切替
