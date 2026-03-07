@@ -1262,6 +1262,153 @@ function generateTasteImage() {
 }
 
 // ============================================================
+// 会計機能
+// ============================================================
+var billData = null;
+var billRequested = false;
+
+function openBill() {
+  var modal = document.getElementById("billModal");
+  modal.classList.add("show");
+  document.body.style.overflow = "hidden";
+
+  // リセット表示
+  document.getElementById("bill-loading").style.display = "block";
+  document.getElementById("bill-content").style.display = "none";
+  document.getElementById("bill-requested").style.display = "none";
+  document.getElementById("bill-empty").style.display = "none";
+
+  // 既にリクエスト済みならリクエスト画面を表示
+  if (billRequested && billData) {
+    showBillRequested();
+    return;
+  }
+
+  // 注文履歴を取得
+  var userId = currentUser ? currentUser.userId : "";
+  var tableId = currentTable || "";
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "getBill",
+      userId: userId,
+      tableId: tableId
+    })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById("bill-loading").style.display = "none";
+
+      if (d.status === "success" && d.items && d.items.length > 0) {
+        billData = d;
+        renderBill(d);
+      } else {
+        document.getElementById("bill-empty").style.display = "block";
+      }
+    })
+    .catch(function(e) {
+      console.error("getBill error:", e);
+      document.getElementById("bill-loading").style.display = "none";
+      document.getElementById("bill-empty").style.display = "block";
+    });
+}
+
+function renderBill(data) {
+  document.getElementById("bill-table-no").textContent = currentTable || "-";
+  document.getElementById("bill-content").style.display = "block";
+
+  var container = document.getElementById("bill-items");
+  var html = "";
+  var total = 0;
+
+  data.items.forEach(function(item) {
+    var itemTotal = (item.price || 0) * (item.quantity || 1);
+    total += itemTotal;
+    html += '<div class="bill-item-row">';
+    html += '<div>';
+    html += '<div class="bill-item-name">' + (item.name || "不明") + '</div>';
+    if (item.option) {
+      html += '<div class="bill-item-option">' + item.option + '</div>';
+    }
+    html += '</div>';
+    html += '<span class="bill-item-qty">×' + (item.quantity || 1) + '</span>';
+    html += '<span class="bill-item-price">¥' + itemTotal.toLocaleString() + '</span>';
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+  document.getElementById("bill-total").textContent = "¥" + total.toLocaleString();
+}
+
+function requestBill() {
+  if (!billData) return;
+
+  var btn = document.getElementById("bill-request-btn");
+  btn.disabled = true;
+  btn.textContent = "送信中...";
+
+  var userId = currentUser ? currentUser.userId : "";
+  var tableId = currentTable || "";
+
+  fetch(GAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "requestBill",
+      userId: userId,
+      tableId: tableId,
+      total: billData.total || 0,
+      displayName: currentUser ? currentUser.displayName : ""
+    })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === "success") {
+        billRequested = true;
+        showBillRequested();
+      } else {
+        btn.disabled = false;
+        btn.textContent = "🙋 会計をお願いする";
+        alert("エラーが発生しました");
+      }
+    })
+    .catch(function(e) {
+      console.error("requestBill error:", e);
+      btn.disabled = false;
+      btn.textContent = "🙋 会計をお願いする";
+      alert("通信エラーが発生しました");
+    });
+}
+
+function showBillRequested() {
+  document.getElementById("bill-loading").style.display = "none";
+  document.getElementById("bill-content").style.display = "none";
+  document.getElementById("bill-empty").style.display = "none";
+  document.getElementById("bill-requested").style.display = "block";
+
+  document.getElementById("bill-req-table").textContent = currentTable || "-";
+
+  var total = 0;
+  var html = "";
+  if (billData && billData.items) {
+    billData.items.forEach(function(item) {
+      var itemTotal = (item.price || 0) * (item.quantity || 1);
+      total += itemTotal;
+      html += '<div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13px;">';
+      html += '<span>' + (item.name || "") + (item.option ? " (" + item.option + ")" : "") + ' ×' + (item.quantity || 1) + '</span>';
+      html += '<span style="font-weight:600;">¥' + itemTotal.toLocaleString() + '</span>';
+      html += '</div>';
+    });
+  }
+
+  document.getElementById("bill-req-items").innerHTML = html;
+  document.getElementById("bill-req-total").textContent = "¥" + total.toLocaleString();
+}
+
+
+// ============================================================
 // 起動
 // ============================================================
 initializeLiff();
