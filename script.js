@@ -40,6 +40,7 @@ function getNextLevel(orders) {
 // 画面切り替え
 // ============================================================
 function switchScreen(screen) {
+  document.body.style.overflow = ""; 
   currentScreen = screen;
   document.querySelectorAll(".screen").forEach(function(el) {
     el.classList.remove("active");
@@ -1271,9 +1272,8 @@ var billRequested = false;
 function closeBill() {
   var modal = document.getElementById("billModal");
   modal.classList.remove("show");
-  document.body.style.overflow = ""; 
+  document.body.style.overflow = "";  // ← これも確認
 }
-
 
 function openBill() {
   var modal = document.getElementById("billModal");
