@@ -876,6 +876,14 @@ function renderTasteChart(data) {
   var ctx = document.getElementById("taste-chart").getContext("2d");
   if (tasteChartInstance) tasteChartInstance.destroy();
 
+  // テーマに応じたチャートカラーを取得
+  var cs = getComputedStyle(document.documentElement);
+  var chartBorder = cs.getPropertyValue('--chart-border').trim() || '#3b82f6';
+  var chartFill = cs.getPropertyValue('--chart-fill').trim() || 'rgba(59,130,246,0.15)';
+  var chartGrid = cs.getPropertyValue('--chart-grid').trim() || 'rgba(0,0,0,0.08)';
+  var chartLabel = cs.getPropertyValue('--chart-label').trim() || '#6b7280';
+  var tickColor = cs.getPropertyValue('--text-muted').trim() || '#9ca3af';
+
   tasteChartInstance = new Chart(ctx, {
     type: "radar",
     data: {
@@ -883,10 +891,10 @@ function renderTasteChart(data) {
       datasets: [{
         label: "My Taste",
         data: [data.salty, data.sweet, data.sour, data.bitter, data.rich],
-        backgroundColor: "rgba(212,165,116,0.15)",
-        borderColor: "var(--primary)",
+        backgroundColor: chartFill,
+        borderColor: chartBorder,
         borderWidth: 2.5,
-        pointBackgroundColor: "#d4a574"
+        pointBackgroundColor: chartBorder
       }]
     },
     options: {
@@ -896,9 +904,9 @@ function renderTasteChart(data) {
         r: {
           beginAtZero: true,
           max: 10,
-          ticks: { stepSize: 2, color: "var(--text-muted)" },
-          grid: { color: "rgba(255,255,255,0.1)" },
-          pointLabels: { color: "var(--text-secondary)", font: { size: 13 } }
+          ticks: { stepSize: 2, color: tickColor },
+          grid: { color: chartGrid },
+          pointLabels: { color: chartLabel, font: { size: 13 } }
         }
       },
       plugins: { legend: { display: false } }
