@@ -517,6 +517,32 @@
   <div id="sales-content">
     <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">読み込み中...</div></div>
   </div>
+
+<!-- 施策効果セクション -->
+<div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--border-color);">
+  <div class="section-label">📈 施策効果</div>
+
+  <!-- 効果サマリーカード -->
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:20px;" id="effect-summary">
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">リピート率（30日）</div>
+      <div style="font-size:28px; font-weight:700; color:var(--accent);" id="ef-repeat-rate">-</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">平均客単価</div>
+      <div style="font-size:28px; font-weight:700;" id="ef-avg-spend">-</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; text-align:center;">
+      <div style="font-size:12px; color:var(--text-muted);">配信経由売上</div>
+      <div style="font-size:28px; font-weight:700; color:#e67e22;" id="ef-bc-revenue">-</div>
+    </div>
+  </div>
+
+  <!-- シナリオ別効果 -->
+  <div class="section-label">🎯 自動配信シナリオ別の効果</div>
+  <div id="ef-scenarios" style="margin-bottom:20px;"></div>
+</div>
+
 </div>
 
 <!-- ======== メニュー編集モーダル ======== -->
