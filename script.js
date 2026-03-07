@@ -1196,29 +1196,28 @@ function generateTasteImage() {
   document.getElementById("share-loading").style.display = "block";
   document.getElementById("share-result").style.display = "none";
 
-  // 味覚データを取得
   var tasteData = null;
   if (historyCache) {
     tasteData = calculateTasteData(historyCache);
   }
 
   var canvas = document.createElement("canvas");
-  canvas.width = 1080;
-  canvas.height = 1920;
+  canvas.width = 540;
+  canvas.height = 960;
   var ctx = canvas.getContext("2d");
 
   // 背景グラデーション
-  var grad = ctx.createLinearGradient(0, 0, 0, 1920);
+  var grad = ctx.createLinearGradient(0, 0, 0, 960);
   grad.addColorStop(0, "#1e3a5f");
   grad.addColorStop(0.5, "#1a2744");
   grad.addColorStop(1, "#0f1b33");
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 1080, 1920);
+  ctx.fillRect(0, 0, 540, 960);
 
   // 装飾の光
   ctx.beginPath();
-  ctx.arc(540, 750, 400, 0, Math.PI * 2);
-  var glow = ctx.createRadialGradient(540, 750, 0, 540, 750, 400);
+  ctx.arc(270, 400, 200, 0, Math.PI * 2);
+  var glow = ctx.createRadialGradient(270, 400, 0, 270, 400, 200);
   glow.addColorStop(0, "rgba(212,165,116,0.12)");
   glow.addColorStop(1, "rgba(212,165,116,0)");
   ctx.fillStyle = glow;
@@ -1228,36 +1227,36 @@ function generateTasteImage() {
   var shopNameText = document.getElementById("shop-name-text");
   var shopName = shopNameText ? shopNameText.textContent : "BAR";
   ctx.fillStyle = "rgba(255,255,255,0.5)";
-  ctx.font = "36px sans-serif";
+  ctx.font = "18px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(shopName, 540, 100);
+  ctx.fillText(shopName, 270, 50);
 
   // タイトル
   ctx.fillStyle = "#d4a574";
-  ctx.font = "bold 56px sans-serif";
-  ctx.fillText("My Taste 診断結果", 540, 180);
+  ctx.font = "bold 28px sans-serif";
+  ctx.fillText("My Taste 診断結果", 270, 90);
 
   // レベル
   var curLevel = getLevel(totalOrderCount);
   ctx.fillStyle = curLevel.color;
-  ctx.font = "bold 44px sans-serif";
-  ctx.fillText(curLevel.icon + " Lv." + curLevel.lv + " " + curLevel.name, 540, 270);
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText(curLevel.icon + " Lv." + curLevel.lv + " " + curLevel.name, 270, 130);
 
   // 注文数
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "30px sans-serif";
-  ctx.fillText("累計 " + totalOrderCount + " オーダー", 540, 330);
+  ctx.font = "15px sans-serif";
+  ctx.fillText("累計 " + totalOrderCount + " オーダー", 270, 160);
 
-  // レーダーチャート描画
+  // レーダーチャート
   if (tasteData) {
-    var cx = 540, cy = 750, radius = 250;
+    var cx = 270, cy = 390, radius = 120;
     var labels = ["塩味", "甘味", "酸味", "苦味", "コク"];
     var values = [tasteData.salty, tasteData.sweet, tasteData.sour, tasteData.bitter, tasteData.rich];
     var maxVal = 10;
     var angleStep = (Math.PI * 2) / 5;
     var startAngle = -Math.PI / 2;
 
-    // グリッド線（5段階）
+    // グリッド線
     for (var ring = 1; ring <= 5; ring++) {
       var r = radius * (ring / 5);
       ctx.beginPath();
@@ -1265,8 +1264,7 @@ function generateTasteImage() {
         var angle = startAngle + j * angleStep;
         var px = cx + r * Math.cos(angle);
         var py = cy + r * Math.sin(angle);
-        if (j === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath();
       ctx.strokeStyle = "rgba(255,255,255,0.1)";
@@ -1285,7 +1283,7 @@ function generateTasteImage() {
       ctx.stroke();
     }
 
-    // データ領域（塗り）
+    // データ領域
     ctx.beginPath();
     for (var j = 0; j < 5; j++) {
       var angle = startAngle + j * angleStep;
@@ -1293,14 +1291,13 @@ function generateTasteImage() {
       var r = radius * (val / maxVal);
       var px = cx + r * Math.cos(angle);
       var py = cy + r * Math.sin(angle);
-      if (j === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+      if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.closePath();
     ctx.fillStyle = "rgba(59,130,246,0.25)";
     ctx.fill();
     ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     // データポイント
@@ -1311,70 +1308,67 @@ function generateTasteImage() {
       var px = cx + r * Math.cos(angle);
       var py = cy + r * Math.sin(angle);
       ctx.beginPath();
-      ctx.arc(px, py, 8, 0, Math.PI * 2);
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
       ctx.fillStyle = "#3b82f6";
       ctx.fill();
       ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     }
 
     // ラベル + 数値
-    ctx.font = "bold 32px sans-serif";
+    ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     for (var j = 0; j < 5; j++) {
       var angle = startAngle + j * angleStep;
-      var lx = cx + (radius + 60) * Math.cos(angle);
-      var ly = cy + (radius + 60) * Math.sin(angle);
+      var lx = cx + (radius + 35) * Math.cos(angle);
+      var ly = cy + (radius + 35) * Math.sin(angle);
       ctx.fillStyle = "#d4a574";
       ctx.fillText(labels[j], lx, ly);
       ctx.fillStyle = "rgba(255,255,255,0.7)";
-      ctx.font = "28px sans-serif";
-      ctx.fillText(values[j].toFixed(1), lx, ly + 36);
-      ctx.font = "bold 32px sans-serif";
+      ctx.font = "14px sans-serif";
+      ctx.fillText(values[j].toFixed(1), lx, ly + 18);
+      ctx.font = "bold 16px sans-serif";
     }
 
-    // 味覚傾向テキスト
+    // 味覚傾向
     var maxKey = Object.keys(tasteData).reduce(function(a, b) { return tasteData[a] > tasteData[b] ? a : b; });
     var labelMap = { salty: "塩味", sweet: "甘味", sour: "酸味", bitter: "苦味", rich: "コク" };
     ctx.fillStyle = "#d4a574";
-    ctx.font = "bold 36px sans-serif";
+    ctx.font = "bold 18px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("あなたは「" + labelMap[maxKey] + "」を好む傾向があります", 540, 1120);
+    ctx.fillText("「" + labelMap[maxKey] + "」を好む傾向があります", 270, 570);
   } else {
     ctx.fillStyle = "rgba(255,255,255,0.4)";
-    ctx.font = "32px sans-serif";
+    ctx.font = "16px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("注文データがまだありません", 540, 750);
+    ctx.fillText("注文データがまだありません", 270, 390);
   }
 
   // 注文履歴（最新5件）
   if (historyCache) {
     var items = [];
-    if (Array.isArray(historyCache)) {
-      items = historyCache;
-    } else if (historyCache.current) {
-      items = historyCache.current;
-    }
+    if (Array.isArray(historyCache)) { items = historyCache; }
+    else if (historyCache.current) { items = historyCache.current; }
     if (items.length > 0) {
       ctx.fillStyle = "#d4a574";
-      ctx.font = "bold 34px sans-serif";
+      ctx.font = "bold 17px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("最近のオーダー", 540, 1220);
+      ctx.fillText("最近のオーダー", 270, 620);
 
-      ctx.font = "28px sans-serif";
+      ctx.font = "14px sans-serif";
       ctx.textAlign = "left";
       var displayItems = items.slice(0, 5);
       for (var k = 0; k < displayItems.length; k++) {
         var item = displayItems[k];
         var name = item.itemName || item.name || "不明";
         var price = item.price || 0;
-        var yPos = 1280 + k * 55;
+        var yPos = 655 + k * 30;
         ctx.fillStyle = "rgba(255,255,255,0.8)";
-        ctx.fillText("• " + name, 180, yPos);
+        ctx.fillText("• " + name, 90, yPos);
         ctx.textAlign = "right";
         ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText("¥" + Number(price).toLocaleString(), 900, yPos);
+        ctx.fillText("¥" + Number(price).toLocaleString(), 450, yPos);
         ctx.textAlign = "left";
       }
     }
@@ -1382,11 +1376,11 @@ function generateTasteImage() {
 
   // フッター
   ctx.fillStyle = "rgba(255,255,255,0.3)";
-  ctx.font = "28px sans-serif";
+  ctx.font = "14px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("AIソムリエがあなたの味覚を分析しました", 540, 1820);
+  ctx.fillText("AIソムリエがあなたの味覚を分析しました", 270, 920);
 
-  // 画像をアップロード
+  // アップロード
   var dataUrl = canvas.toDataURL("image/png");
   var base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
 
@@ -1399,10 +1393,8 @@ function generateTasteImage() {
     .then(function(d) {
       document.getElementById("share-loading").style.display = "none";
       if (d.status === "success" && d.url) {
-        shareImageUrl = d.url;
         document.getElementById("share-result").style.display = "block";
         document.getElementById("share-preview-img").src = d.url;
-        document.getElementById("share-direct-link").href = d.url;
       } else {
         showToast("画像保存に失敗しました");
         closeModal("shareImageModal");
@@ -1414,6 +1406,7 @@ function generateTasteImage() {
       closeModal("shareImageModal");
     });
 }
+
 
 // ============================================================
 // 画像保存 & LINEシェア
