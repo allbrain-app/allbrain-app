@@ -1711,8 +1711,7 @@ function loadSegmentCount(segment) {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      // ★修正: "success" → "ok"
-      if (d.status === "ok" && d.customers) {
+      if (d.status === "success" && d.customers) {
         var withLineId = d.customers.filter(function(c) { return c.line_user_id && c.line_user_id !== ""; });
         countEl.textContent = withLineId.length;
       } else {
@@ -1761,8 +1760,7 @@ function loadTemplatePreview() {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      // ★修正: "success" → "ok"
-      if (d.status === "ok" && d.content) {
+      if (d.status === "success" && d.content) {
         bcTemplateCache[templateId] = d.content;
         preview.textContent = d.content;
         preview.style.color = "var(--text-main)";
@@ -1814,7 +1812,7 @@ function sendBroadcast() {
     segment: bcCurrentSegment,
     message: message,
     templateId: templateId,
-    aiPersonalize: useAi,    // ★修正: useAiPersonalize → aiPersonalize
+    useAiPersonalize: useAi,
     mode: bcCurrentMode
   };
 
@@ -1828,8 +1826,7 @@ function sendBroadcast() {
       btn.disabled = false;
       btn.innerHTML = "📣 配信する";
 
-      // ★修正: "success" → "ok", d.sentCount → d.sent_count
-      if (d.status === "ok") {
+      if (d.status === "success") {
         var sent = d.sent_count || 0;
         var errCnt = d.error_count || 0;
         var msg = "✅ " + sent + "名に配信しました";
@@ -1865,8 +1862,7 @@ function loadBroadcastHistory() {
   })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      // ★修正: "success" → "ok"
-      if (d.status === "ok" && d.history && d.history.length > 0) {
+      if (d.status === "success" && d.history && d.history.length > 0) {
         var html = "";
         var segNames = { all: "全員", vip: "VIP", active: "アクティブ", dormant: "休眠", "new": "新規", auto: "🤖自動" };
         var modeNames = { manual: "フリー", template: "テンプレ", auto: "自動" };
